@@ -46,7 +46,7 @@ class CudaModule:
             time                            :   execution time
         """
         # [TODO: Students should write code for the entire method for both cases of is_b_a_vector]
-
+        length = int(length)
         # Event objects to mark the start and end points
         start = cuda.Event()
         end   = cuda.Event()
@@ -100,7 +100,7 @@ class CudaModule:
         else:
             func = mod.get_function("add_device_mem_gpu_vps")
         start.record()
-        func(a_gpu, b_gpu, c_gpu, np.int32(length), block=blockDim, grid = gridDim)
+        func(a_gpu, b_gpu, c_gpu, np.int32(int(length)), block=blockDim, grid = gridDim)
 
         # Wait for the event to complete
         end.record() 
@@ -126,6 +126,7 @@ class CudaModule:
             time                            :   execution time
         """
         # [TODO: Students should write code for the entire method for both cases of is_b_a_vector]
+        length = int(length)
         # Event objects to mark the start and end points
         start = cuda.Event()
         end   = cuda.Event()
@@ -194,7 +195,8 @@ class CudaModule:
             time                            :   execution time
         """
         # Bonus points if is_b_a_vector == False case is solved by passing a single number to GPUarray and performing the addition]
-        # [TODO: Students should write code for the entire method. Sufficient to be able to do for is_b_a_vector == True case alone. 
+        # [TODO: Students should write code for the entire method. Sufficient to be able to do for is_b_a_vector == True case alone.
+        length = int(length)
         # Event objects to mark start and end points
         start = cuda.Event()
         end   = cuda.Event()
@@ -239,7 +241,7 @@ class CudaModule:
             time                            :   execution time
         """
         # [TODO: Students should write code for the entire method. Sufficient to be able to do for is_b_a_vector == True case alone. Bonus points if is_b_a_vector == False case is solved by passing a single number to GPUarray and performing the addition]
-
+        length = int(length)
         # Create cuda events to mark the start and end of array.
         start = cuda.Event()
         end   = cuda.Event()
@@ -323,12 +325,12 @@ class CudaModule:
 
 def main():
     # List all main methods
-    all_main_methods = ['CPU Add', 'CPU_Loop_Add', 'add_device_mem_gpu']
-    # all_main_methods = ['CPU Add', 'CPU_Loop_Add', 'add_device_mem_gpu', 'add_host_mem_gpu', 'add_gpuarray_no_kernel', 'add_gpuarray_using_kernel']
+    all_main_methods = ['CPU Add', 'CPU_Loop_Add', 'add_device_mem_gpu', 'add_host_mem_gpu', 
+                        'add_gpuarray_no_kernel', 'add_gpuarray_using_kernel']
     # List the two operations
     all_operations = ['Pass Vector and Number', 'Pass Two Vectors']
     # List the size of vectors
-    vector_sizes = 10**np.arange(1,9)
+    vector_sizes = 10**np.arange(1,9, dtype=np.int32)
     # List iteration indexes
     iteration_indexes = np.arange(1,50)
 
@@ -340,7 +342,8 @@ def main():
     valid_main_methods = all_main_methods
 
     # Select the list of valid vector_sizes for current_analysis
-    valid_vector_sizes = vector_sizes[0:6]
+    # valid_vector_sizes = vector_sizes[0:6]
+    valid_vector_sizes = vector_sizes[0:5]
 
     # Create an instance of the CudaModule class
     graphicscomputer = CudaModule()
@@ -356,7 +359,6 @@ def main():
         arr_avg_total_cpu_loop_time = np.array([])
         # [TODO: Students should write Code]
         # Add for the rest of the methods
-        
         for vector_size in valid_vector_sizes:
 
             arr_total_cpu_time = np.array([])
@@ -371,7 +373,6 @@ def main():
             b = 3 # Choose any number you desire
             b_number_np = np.float32(b) # storing as number having value b with datatype Float32
             b_array_np = b*np.ones(vector_size).astype(np.float32) # storing as array with all elements having equal value b as datatype Float32
-            percentdone = 0
             for iteration in iteration_indexes:
                 for current_method in valid_main_methods:
                     if(current_operation == 'Pass Vector and Number'):
@@ -380,22 +381,20 @@ def main():
                     else:
                         is_b_a_vector = True
                         b_in = b_array_np
-                    if(current_method == 'CPU Add'):
+                    if(current_method == 'CPU Add'): # baseline
                         c_np_cpu_add, cpu_time_add = graphicscomputer.CPU_Add(a_array_np,b_in,vector_size,is_b_a_vector)
                         arr_total_cpu_time = np.append(arr_total_cpu_time, cpu_time_add)
-                    else:
-                        if(current_method == 'CPU_Loop_Add'):
-                            c_np_cpu_loop_add, cpu_time_loop_add = graphicscomputer.CPU_Loop_Add(a_array_np,b_in,vector_size,is_b_a_vector)
-                            sum_diff = c_np_cpu_loop_add - c_np_cpu_add
-                            arr_total_cpu_loop_time = np.append(arr_total_cpu_loop_time, cpu_time_loop_add)
-                        
-                        # [TODO: Students should write Code]
-                        # Add for the rest of the methods
-                       
+                    if(current_method == 'CPU_Loop_Add'):
+                        c_np_cpu_loop_add, cpu_time_loop_add = graphicscomputer.CPU_Loop_Add(a_array_np,b_in,vector_size,is_b_a_vector)
+                        sum_diff = c_np_cpu_loop_add - c_np_cpu_add
+                        arr_total_cpu_loop_time = np.append(arr_total_cpu_loop_time, cpu_time_loop_add)
                         total_diff = sum_diff.sum()
+                        # check correctness
                         if (total_diff != 0):
                             print (current_method + " " + current_operation + "sum mismatch")
                             print (total_diff)
+                    # [TODO: Students should write Code]
+                    # Add for the rest of the methods
             avg_total_cpu_time = ((arr_total_cpu_time.sum())/50)
             arr_avg_total_cpu_time = np.append(arr_avg_total_cpu_time, avg_total_cpu_time)
             avg_total_cpu_loop_time = ((arr_total_cpu_loop_time.sum())/50)
@@ -414,13 +413,15 @@ def main():
         # if the student prefers to have a separate code for plotting, or to use a different software for plotting)
         
 if __name__ == "__main__":
-    size = 4
+    main()
+    exit()
+    size = np.int32(4)
     a = np.random.random(size).astype(np.float32)
     b = np.random.random(size).astype(np.float32)
     graphicscomputer = CudaModule()
-    c,t = graphicscomputer.add_gpuarray(a,b,size,True)
+    c,t = graphicscomputer.add_device_mem_gpu(a,b,size,True)
     print(a)
     print(b)
     print(c)
-    c,t = graphicscomputer.add_gpuarray(a,np.float(4),size,False)
+    c,t = graphicscomputer.add_device_mem_gpu(a,np.float(4),size,False)
     print(c)
