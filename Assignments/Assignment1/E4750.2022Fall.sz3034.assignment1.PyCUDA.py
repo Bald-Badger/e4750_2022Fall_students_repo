@@ -203,7 +203,7 @@ class CudaModule:
         a_gpu = gpuarray.to_gpu(a)
         
         if (is_b_a_vector):
-            b_gpu = gpuarray.to_gpu(np.array(b))
+            b_gpu = gpuarray.to_gpu(b)
         else:
             b_gpu = gpuarray.zeros_like(a_gpu)
             # technically I only sent one instance to b to the GPU, and the filling is done inside the GPU,
@@ -241,21 +241,49 @@ class CudaModule:
         # [TODO: Students should write code for the entire method. Sufficient to be able to do for is_b_a_vector == True case alone. Bonus points if is_b_a_vector == False case is solved by passing a single number to GPUarray and performing the addition]
 
         # Create cuda events to mark the start and end of array.
+        start = cuda.Event()
+        end   = cuda.Event()
 
         # Get function defined in class defination
 
-        # Allocate device memory for a, b, output of addition using gpuarray class        
+        # Use `Add_two_vectors_GPU` Kernel.
+        mod = SourceModule("""
+            __global__ void add_gpuarray(float *a, float *b, float *c, const int n)
+            {   
+                int idx = threadIdx.x + blockIdx.x * blockDim.x;
+                if (idx < n) c[idx] = a[idx] + b[idx];
+            }
+            """) 
+
+        func = mod.get_function("add_gpuarray")
+
+
+        # Allocate device memory for a, b, output of addition using gpuarray class
+        a_gpu = gpuarray.to_gpu(a)
+        c_gpu = gpuarray.zeros_like(a_gpu)
+        if (is_b_a_vector):
+            b_gpu = gpuarray.to_gpu(b)
+        else:
+            b_gpu = gpuarray.zeros_like(a_gpu)
+            b_gpu.fill(np.float(b))
         
         # Get grid and block dim
+        blockDim  = (self.blocksize, 1, 1)
+        gridDim   = (length // self.blocksize + 1, 1, 1)
 
         # Record execution time and execute operation
+        start.record()
+        func(a_gpu, b_gpu, c_gpu, np.int32(length), block = blockDim, grid = gridDim)
 
         # Wait for the event to complete
+        end.record() 
+        end.synchronize()
 
         # Fetch result from device to host
+        c = c_gpu.get()
         
         # return a tuple of output of addition and time taken to execute the operation.
-        pass
+        return (c, start.time_till(end))
 
     def CPU_Add(self, a, b, length, is_b_a_vector):
         """
@@ -390,9 +418,9 @@ if __name__ == "__main__":
     a = np.random.random(size).astype(np.float32)
     b = np.random.random(size).astype(np.float32)
     graphicscomputer = CudaModule()
-    c,t = graphicscomputer.add_gpuarray_no_kernel(a,b,size,True)
+    c,t = graphicscomputer.add_gpuarray(a,b,size,True)
     print(a)
     print(b)
     print(c)
-    c,t = graphicscomputer.add_gpuarray_no_kernel(a,np.float(4),size,False)
+    c,t = graphicscomputer.add_gpuarray(a,np.float(4),size,False)
     print(c)
