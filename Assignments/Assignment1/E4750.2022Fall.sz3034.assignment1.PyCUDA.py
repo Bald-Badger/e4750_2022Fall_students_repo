@@ -1,13 +1,18 @@
 """
 The code in this file is part of the instructor-provided template for Assignment-1, task-2, Fall 2021. 
+Modified by Shuai Zhang (sz3034@columbia.edu)
 """
 
-import relevant.libraries
+import numpy as np
+import pycuda.driver as cuda
+import pycuda.autoinit
+from pycuda.compiler import SourceModule
+import time
 
-class deviceAdd:
-    def __init__(self):
+class CudaModule:
+    def __init__(self, blocksize=None):
         """
-        Attributes for instance of deviceAdd module
+        Attributes for instance of CudaModule module
         Includes kernel code and input variables.
         """
 
@@ -16,6 +21,8 @@ class deviceAdd:
         # needs to be done once for the 3 functions
         # you will call from this class.
         self.mod = self.getSourceModule()
+        if blocksize is None:
+            self.blocksize = 256
 
     def getSourceModule(self):
         """
@@ -25,7 +32,6 @@ class deviceAdd:
         kernelwrapper = """"""
         return SourceModule(kernelwrapper)
 
-    
     def add_device_mem_gpu(self, a, b, length, is_b_a_vector):
         """
         Function to perform on-device parallel vector addition
@@ -41,29 +47,60 @@ class deviceAdd:
         # [TODO: Students should write code for the entire method for both cases of is_b_a_vector]
 
         # Event objects to mark the start and end points
+        start = cuda.Event()
+        end   = cuda.Event()
 
         # Device memory allocation for input and output arrays
+        a     = a.astype(np.float32)
+        b     = b.astype(np.float32)
+        c     = np.zeros(length, dtype=np.float32)
+        a_gpu = cuda.mem_alloc(a.size * a.dtype.itemsize)
+        b_gpu = cuda.mem_alloc(b.size * b.dtype.itemsize)
+        c_gpu = cuda.mem_alloc(c.size * c.dtype.itemsize)
 
         # Copy data from host to device
+        cuda.memcpy_htod(a_gpu, a)
+        cuda.memcpy_htod(b_gpu, b)
 
         # Call the kernel function from the compiled module
         if (is_b_a_vector == True):
             # Use `Add_two_vectors_GPU` Kernel.
+            mod = SourceModule("""
+                __global__ void add_device_mem_gpu_vpv(float *a, float *b, float *c)
+                {   
+                    int idx = threadIdx.x + blockIdx.x * blockDim.x;
+                    c[idx] = a[idx] + b[idx];
+                }
+                """) 
         else:
             # Use `Add_to_each_element_GPU` Kernel
+            mod = SourceModule("""
+                __global__ void add_device_mem_gpu_vps(float *a, float *b, float *c)
+                {   
+                    int idx = threadIdx.x + blockIdx.x * blockDim.x;
+                    c[idx] = a[idx] + b;
+                }
+                """)
 
         # Get grid and block dim
+        blockDim  = (self.blocksize, 1, 1)
+        gridDim   = (length // self.blocksize + 1, 1, 1)
         
         # Record execution time and call the kernel loaded to the device
+        func = mod.get_function("add_device_mem_gpu_vpv")
+        func(a_gpu, b_gpu, c_gpu, block=blockDim, grid = gridDim)
+        start.record()
 
         # Wait for the event to complete
+        end.record() 
+        end.synchronize()
 
         # Copy result from device to the host
+        cuda.memcpy_dtoh(c, c_gpu)
 
         # return a tuple of output of addition and time taken to execute the operation.
-        pass
+        return (c, start.time_till(end))
 
-    
     def add_host_mem_gpu(self, a, b, length, is_b_a_vector):
         """
         Function to perform on-device parallel vector addition
@@ -84,8 +121,10 @@ class deviceAdd:
 
         # Call the kernel function from the compiled module
         if (is_b_a_vector == True):
+            pass
             # Use `Add_two_vectors_GPU` Kernel.
         else:
+            pass
             # Use `Add_to_each_element_GPU` Kernel
         
         # Record execution time and call the kernel loaded to the device
@@ -94,7 +133,6 @@ class deviceAdd:
         
         # return a tuple of output of addition and time taken to execute the operation.
         pass
-
 
     def add_gpuarray_no_kernel(self, a, b, length, is_b_a_vector):
         """
@@ -193,10 +231,10 @@ class deviceAdd:
 
         return c, end - start
 
-if __name__ == "__main__":
-
+def main():
     # List all main methods
-    all_main_methods = ['CPU Add', 'CPU_Loop_Add', 'add_device_mem_gpu', 'add_host_mem_gpu', 'add_gpuarray_no_kernel', 'add_gpuarray_using_kernel']
+    all_main_methods = ['CPU Add', 'CPU_Loop_Add', 'add_device_mem_gpu']
+    # all_main_methods = ['CPU Add', 'CPU_Loop_Add', 'add_device_mem_gpu', 'add_host_mem_gpu', 'add_gpuarray_no_kernel', 'add_gpuarray_using_kernel']
     # List the two operations
     all_operations = ['Pass Vector and Number', 'Pass Two Vectors']
     # List the size of vectors
@@ -209,7 +247,7 @@ if __name__ == "__main__":
 
     # Select the list of valid methods to perform (populate as you complete the methods).
     # Currently in template code only CPU Add and CPU Loop Add are complete.
-    valid_main_methods = all_main_methods[0:2]
+    valid_main_methods = all_main_methods
 
     # Select the list of valid vector_sizes for current_analysis
     valid_vector_sizes = vector_sizes[0:6]
@@ -283,3 +321,14 @@ if __name__ == "__main__":
         # [TODO: Students should write Code]
         # Add for the rest of the methods
         # Code for Plotting the results (the code for plotting can be skipped, if the student prefers to have a separate code for plotting, or to use a different software for plotting)
+        
+if __name__ == "__main__":
+    # add_device_mem_gpu(self, a, b, length, is_b_a_vector):
+    size = 4
+    a = np.random.random(size)
+    b = np.random.random(size)
+    graphicscomputer = CudaModule()
+    c,t = graphicscomputer.add_device_mem_gpu(a,b,size,True)
+    print(a)
+    print(b)
+    print(c)        
