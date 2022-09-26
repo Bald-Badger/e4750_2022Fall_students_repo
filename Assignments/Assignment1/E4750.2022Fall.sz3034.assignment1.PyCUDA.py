@@ -109,6 +109,7 @@ class CudaModule:
         # Copy result from device to the host
         cuda.memcpy_dtoh(c, c_gpu)
         mal2h.record()
+        mal2h.synchronize()
 
         # return a tuple of output of addition and time taken to execute the operation.
         return (c, mal2d.time_till(mal2h) * 1000, comp.time_till(fin) * 1000) # in us
@@ -213,6 +214,7 @@ class CudaModule:
         # Fetch result from device to host
         c = c_gpu.get()
         mal2h.record()
+        mal2h.synchronize()
 
         # return a tuple of output of addition and time taken to execute the operation.
         return (c, mal2d.time_till(mal2h) * 1000, comp.time_till(fin) * 1000) # in us
@@ -271,6 +273,7 @@ class CudaModule:
         # Fetch result from device to host
         c = c_gpu.get()
         mal2h.record()
+        mal2h.synchronize()
         
         # return a tuple of output of addition and time taken to execute the operation.
         return (c, mal2d.time_till(mal2h) * 1000, comp.time_till(fin) * 1000) # in us
