@@ -60,8 +60,10 @@ class CudaModule:
         # [TODO: Students should write code for the entire method for both cases of is_b_a_vector]
         length = int(length)
         # Event objects to mark the start and end points
-        start = cuda.Event()
-        end   = cuda.Event()
+        mal2d = cuda.Event()
+        comp  = cuda.Event()
+        fin   = cuda.Event()
+        mal2h = cuda.Event()
 
         # Device memory allocation for input and output arrays
         a     = a.astype(np.float32)
@@ -78,6 +80,7 @@ class CudaModule:
             b_gpu = np.float32(b)
 
         # Copy data from host to device
+        mal2d.record()
         cuda.memcpy_htod(a_gpu, a)
         if (is_b_a_vector == True):
             cuda.memcpy_htod(b_gpu, b)
@@ -96,18 +99,19 @@ class CudaModule:
         gridDim   = (length // self.blocksize + 1, 1, 1)
         
         # Record execution time and call the kernel loaded to the device
-        start.record()
+        comp.record()
         func(a_gpu, b_gpu, c_gpu, np.int32(int(length)), block=blockDim, grid = gridDim)
 
         # Wait for the event to complete
-        end.record()
-        end.synchronize()
+        fin.record()
+        fin.synchronize()
 
         # Copy result from device to the host
         cuda.memcpy_dtoh(c, c_gpu)
+        mal2h.record()
 
         # return a tuple of output of addition and time taken to execute the operation.
-        return (c, start.time_till(end) * 1000) # in us
+        return (c, mal2d.time_till(mal2h) * 1000, comp.time_till(fin) * 1000) # in us
 
     def add_host_mem_gpu(self, a, b, length, is_b_a_vector):
         """
@@ -125,8 +129,10 @@ class CudaModule:
         # [TODO: Students should write code for the entire method for both cases of is_b_a_vector]
         length = int(length)
         # Event objects to mark the start and end points
-        start = cuda.Event()
-        end   = cuda.Event()
+        # mal2d = cuda.Event()
+        comp  = cuda.Event()
+        fin   = cuda.Event()
+        # mal2h = cuda.Event()
         
         # sanitize input / output
         a     = a.astype(np.float32)
@@ -148,18 +154,18 @@ class CudaModule:
             func = mod.get_function("Add_two_vectors_GPU")
         else:
             func = mod.get_function("Add_to_each_element_GPU")
-        start.record()
+        comp.record()
         if (is_b_a_vector):
             func(cuda.In(a), cuda.In(b), cuda.Out(c), np.int32(length), block=blockDim, grid = gridDim)
         else:
             func(cuda.In(a), b         , cuda.Out(c), np.int32(length), block=blockDim, grid = gridDim)
 
         # Wait for the event to complete
-        end.record()
-        end.synchronize()
+        fin.record()
+        fin.synchronize()
 
         # return a tuple of output of addition and time taken to execute the operation.
-        return (c, start.time_till(end) * 1000) # in us
+        return (c, comp.time_till(fin) * 1000, None) # in us
 
     def add_gpuarray_no_kernel(self, a, b, length, is_b_a_vector):
         """
@@ -179,10 +185,13 @@ class CudaModule:
         # [TODO: Students should write code for the entire method. Sufficient to be able to do for is_b_a_vector == True case alone.
         length = int(length)
         # Event objects to mark start and end points
-        start = cuda.Event()
-        end   = cuda.Event()
+        mal2d = cuda.Event()
+        comp  = cuda.Event()
+        fin   = cuda.Event()
+        mal2h = cuda.Event()
 
         # Allocate device memory using gpuarray class
+        mal2d.record()
         a_gpu = gpuarray.to_gpu(a)
         
         if (is_b_a_vector):
@@ -194,19 +203,20 @@ class CudaModule:
             b_gpu.fill(np.float(b))
         
         # Record execution time and execute operation with numpy syntax
-        start.record()
+        comp.record()
         c_gpu = a_gpu + b_gpu
 
         # Wait for the event to complete
-        end.record()
-        end.synchronize()
+        fin.record()
+        fin.synchronize()
 
         # Fetch result from device to host
         c = c_gpu.get()
-        
+        mal2h.record()
+
         # return a tuple of output of addition and time taken to execute the operation.
-        return (c, start.time_till(end) * 1000) # in us
-        
+        return (c, mal2d.time_till(mal2h) * 1000, comp.time_till(fin) * 1000) # in us
+ 
     def add_gpuarray(self, a, b, length, is_b_a_vector):
         """
         Function to perform on-device parallel vector addition
@@ -224,8 +234,10 @@ class CudaModule:
         # [TODO: Students should write code for the entire method. Sufficient to be able to do for is_b_a_vector == True case alone. Bonus points if is_b_a_vector == False case is solved by passing a single number to GPUarray and performing the addition]
         length = int(length)
         # Create cuda events to mark the start and end of array.
-        start = cuda.Event()
-        end   = cuda.Event()
+        mal2d = cuda.Event()
+        comp  = cuda.Event()
+        fin   = cuda.Event()
+        mal2h = cuda.Event()
 
         # Get function defined in class defination
 
@@ -235,6 +247,7 @@ class CudaModule:
         func = mod.get_function("Add_two_vectors_GPU")
 
         # Allocate device memory for a, b, output of addition using gpuarray class
+        mal2d.record()
         a_gpu = gpuarray.to_gpu(a)
         c_gpu = gpuarray.zeros_like(a_gpu)
         if (is_b_a_vector):
@@ -248,18 +261,19 @@ class CudaModule:
         gridDim   = (length // self.blocksize + 1, 1, 1)
 
         # Record execution time and execute operation
-        start.record()
+        comp.record()
         func(a_gpu, b_gpu, c_gpu, np.int32(length), block = blockDim, grid = gridDim)
 
         # Wait for the event to complete
-        end.synchronize()
-        end.record() 
+        fin.synchronize()
+        fin.record() 
 
         # Fetch result from device to host
         c = c_gpu.get()
+        mal2h.record()
         
         # return a tuple of output of addition and time taken to execute the operation.
-        return (c, start.time_till(end) * 1000) # in us
+        return (c, mal2d.time_till(mal2h) * 1000, comp.time_till(fin) * 1000) # in us
 
     def CPU_Add(self, a, b, length, is_b_a_vector):
         """
