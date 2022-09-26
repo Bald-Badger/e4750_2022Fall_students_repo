@@ -52,22 +52,28 @@ class CudaModule:
 
         # Device memory allocation for input and output arrays
         a     = a.astype(np.float32)
-        b     = b.astype(np.float32)
         c     = np.zeros(length, dtype=np.float32)
+        
         a_gpu = cuda.mem_alloc(a.size * a.dtype.itemsize)
-        b_gpu = cuda.mem_alloc(b.size * b.dtype.itemsize)
         c_gpu = cuda.mem_alloc(c.size * c.dtype.itemsize)
         
+        if (is_b_a_vector):
+            b     = b.astype(np.float32)
+            b_gpu = cuda.mem_alloc(b.size * b.dtype.itemsize)
+
+        else:
+            b_gpu = np.float32(b)
 
         # Copy data from host to device
         cuda.memcpy_htod(a_gpu, a)
-        cuda.memcpy_htod(b_gpu, b)
+        if (is_b_a_vector == True):
+            cuda.memcpy_htod(b_gpu, b)
 
         # Call the kernel function from the compiled module
         if (is_b_a_vector == True):
             # Use `Add_two_vectors_GPU` Kernel.
             mod = SourceModule("""
-                __global__ void add_device_mem_gpu_vpv(float *a, float *b, float *c, int n)
+                __global__ void add_device_mem_gpu_vpv(float *a, float *b, float *c, const int n)
                 {   
                     int idx = threadIdx.x + blockIdx.x * blockDim.x;
                     if (idx < n) c[idx] = a[idx] + b[idx];
@@ -76,7 +82,7 @@ class CudaModule:
         else:
             # Use `Add_to_each_element_GPU` Kernel
             mod = SourceModule("""
-                __global__ void add_device_mem_gpu_vps(float *a, float *b, float *c, int n)
+                __global__ void add_device_mem_gpu_vps(float *a, const float b, float *c, const int n)
                 {   
                     int idx = threadIdx.x + blockIdx.x * blockDim.x;
                     if (idx < n) c[idx] = a[idx] + b;
@@ -88,7 +94,10 @@ class CudaModule:
         gridDim   = (length // self.blocksize + 1, 1, 1)
         
         # Record execution time and call the kernel loaded to the device
-        func = mod.get_function("add_device_mem_gpu_vpv")
+        if (is_b_a_vector):
+            func = mod.get_function("add_device_mem_gpu_vpv")
+        else:
+            func = mod.get_function("add_device_mem_gpu_vps")
         start.record()
         func(a_gpu, b_gpu, c_gpu, np.int32(length), block=blockDim, grid = gridDim)
 
@@ -122,8 +131,11 @@ class CudaModule:
         
         # sanitize input / output
         a     = a.astype(np.float32)
-        b     = b.astype(np.float32)
         c     = np.zeros(length, dtype=np.float32)
+        if (is_b_a_vector):
+            b = b.astype(np.float32)
+        else:
+            b = np.float32(b)
 
         # Get grid and block dim
         blockDim  = (self.blocksize, 1, 1)
@@ -133,7 +145,7 @@ class CudaModule:
         if (is_b_a_vector == True):
             # Use `Add_two_vectors_GPU` Kernel.
             mod = SourceModule("""
-                __global__ void add_device_mem_gpu_vpv(float *a, float *b, float *c, int n)
+                __global__ void add_host_mem_gpu_vpv(float *a, float *b, float *c, const int n)
                 {   
                     int idx = threadIdx.x + blockIdx.x * blockDim.x;
                     if (idx < n) c[idx] = a[idx] + b[idx];
@@ -142,7 +154,7 @@ class CudaModule:
         else:
             # Use `Add_to_each_element_GPU` Kernel
             mod = SourceModule("""
-                __global__ void add_device_mem_gpu_vps(float *a, float *b, float *c, int n)
+                __global__ void add_host_mem_gpu_vps(float *a, const float b, float *c, const int n)
                 {   
                     int idx = threadIdx.x + blockIdx.x * blockDim.x;
                     if (idx < n) c[idx] = a[idx] + b;
@@ -150,10 +162,15 @@ class CudaModule:
                 """)
         
         # Record execution time and call the kernel loaded to the device
-        func = mod.get_function("add_device_mem_gpu_vpv")
+        if (is_b_a_vector):
+            func = mod.get_function("add_host_mem_gpu_vpv")
+        else:
+            func = mod.get_function("add_host_mem_gpu_vps")
         start.record()
-        func(cuda.In(a), cuda.In(b), cuda.Out(c), np.int32(length), block=blockDim, grid = gridDim)
-
+        if (is_b_a_vector):
+            func(cuda.In(a), cuda.In(b), cuda.Out(c), np.int32(length), block=blockDim, grid = gridDim)
+        else:
+            func(cuda.In(a), b         , cuda.Out(c), np.int32(length), block=blockDim, grid = gridDim)
         # Wait for the event to complete
         end.record() 
         end.synchronize()
@@ -350,12 +367,13 @@ def main():
         # Code for Plotting the results (the code for plotting can be skipped, if the student prefers to have a separate code for plotting, or to use a different software for plotting)
         
 if __name__ == "__main__":
-    # add_device_mem_gpu(self, a, b, length, is_b_a_vector):
     size = 4
     a = np.random.random(size)
     b = np.random.random(size)
     graphicscomputer = CudaModule()
-    c,t = graphicscomputer.add_host_mem_gpu(a,b,size,True)
+    c,t = graphicscomputer.add_device_mem_gpu(a,b,size,True)
     print(a)
     print(b)
-    print(c)        
+    print(c)
+    c,t = graphicscomputer.add_device_mem_gpu(a,np.float(4),size,False)
+    print(c)
