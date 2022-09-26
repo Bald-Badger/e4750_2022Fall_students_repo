@@ -31,13 +31,13 @@ class CudaModule:
         """
         # define your kernel below.
         kernelwrapper = """
-            __global__ void add_gpu_vpv(float *a, float *b, float *c, const int n)
+            __global__ void Add_two_vectors_GPU(float *a, float *b, float *c, const int n)
             {   
                 int idx = threadIdx.x + blockIdx.x * blockDim.x;
                 if (idx < n) c[idx] = a[idx] + b[idx];
             }
             
-            __global__ void add_gpu_vps(float *a, const float b, float *c, const int n)
+            __global__ void Add_to_each_element_GPU(float *a, const float b, float *c, const int n)
             {   
                 int idx = threadIdx.x + blockIdx.x * blockDim.x;
                 if (idx < n) c[idx] = a[idx] + b;
@@ -86,10 +86,10 @@ class CudaModule:
         mod = self.mod
         if (is_b_a_vector == True):
             # Use `Add_two_vectors_GPU` Kernel.
-            func = mod.get_function("add_gpu_vpv")
+            func = mod.get_function("Add_two_vectors_GPU")
         else:
             # Use `Add_to_each_element_GPU` Kernel
-            func = mod.get_function("add_gpu_vps")
+            func = mod.get_function("Add_to_each_element_GPU")
 
         # Get grid and block dim
         blockDim  = (self.blocksize, 1, 1)
@@ -145,9 +145,9 @@ class CudaModule:
         
         # Record execution time and call the kernel loaded to the device
         if (is_b_a_vector):
-            func = mod.get_function("add_gpu_vpv")
+            func = mod.get_function("Add_two_vectors_GPU")
         else:
-            func = mod.get_function("add_gpu_vps")
+            func = mod.get_function("Add_to_each_element_GPU")
         start.record()
         if (is_b_a_vector):
             func(cuda.In(a), cuda.In(b), cuda.Out(c), np.int32(length), block=blockDim, grid = gridDim)
@@ -232,7 +232,7 @@ class CudaModule:
         # Use `Add_two_vectors_GPU` Kernel.
         mod = self.mod
 
-        func = mod.get_function("add_gpu_vpv")
+        func = mod.get_function("Add_two_vectors_GPU")
 
         # Allocate device memory for a, b, output of addition using gpuarray class
         a_gpu = gpuarray.to_gpu(a)
@@ -299,8 +299,9 @@ class CudaModule:
 
 def main():
     # List all main methods
-    all_main_methods = ['CPU Add', 'CPU_Loop_Add', 'add_device_mem_gpu', 'add_host_mem_gpu', 
-                        'add_gpuarray_no_kernel', 'add_gpuarray_using_kernel']
+    # all_main_methods = ['CPU Add', 'CPU_Loop_Add', 'add_device_mem_gpu', 'add_host_mem_gpu', 
+    # 'add_gpuarray_no_kernel', 'add_gpuarray_using_kernel']
+    all_main_methods = ['CPU Add', 'add_device_mem_gpu', 'add_host_mem_gpu', 'add_gpuarray_no_kernel', 'add_gpuarray_using_kernel']
     # List the two operations
     all_operations = ['Pass Vector and Number', 'Pass Two Vectors']
     # List the size of vectors
@@ -358,10 +359,8 @@ def main():
             b_number_np = np.float32(b) # storing as number having value b with datatype Float32
             b_array_np = b*np.ones(vector_size).astype(np.float32) # storing as array with all elements having equal value b as datatype Float32
             
-
             # loop through 50 round
             for iteration in iteration_indexes:
-                
                 
                 # loop through all 6 methord
                 for current_method in valid_main_methods:
@@ -426,8 +425,7 @@ def main():
                         if (total_diff != 0):
                             print (current_method + " " + current_operation + "sum mismatch")
                             print (total_diff)
-                    
-                    
+
                     # Add for the rest of the methods
             avg_total_cpu_time = ((arr_total_cpu_time.sum())/50)
             arr_avg_total_cpu_time = np.append(arr_avg_total_cpu_time, avg_total_cpu_time)
