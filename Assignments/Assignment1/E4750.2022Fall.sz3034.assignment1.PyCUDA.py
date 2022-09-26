@@ -30,7 +30,19 @@ class CudaModule:
         Compiles Kernel in Source Module to be used by functions across the class.
         """
         # define your kernel below.
-        kernelwrapper = """"""
+        kernelwrapper = """
+            __global__ void add_gpu_vpv(float *a, float *b, float *c, const int n)
+            {   
+                int idx = threadIdx.x + blockIdx.x * blockDim.x;
+                if (idx < n) c[idx] = a[idx] + b[idx];
+            }
+            
+            __global__ void add_gpu_vps(float *a, const float b, float *c, const int n)
+            {   
+                int idx = threadIdx.x + blockIdx.x * blockDim.x;
+                if (idx < n) c[idx] = a[idx] + b;
+            }
+        """
         return SourceModule(kernelwrapper)
 
     def add_device_mem_gpu(self, a, b, length, is_b_a_vector):
@@ -71,39 +83,24 @@ class CudaModule:
             cuda.memcpy_htod(b_gpu, b)
 
         # Call the kernel function from the compiled module
+        mod = self.mod
         if (is_b_a_vector == True):
             # Use `Add_two_vectors_GPU` Kernel.
-            mod = SourceModule("""
-                __global__ void add_device_mem_gpu_vpv(float *a, float *b, float *c, const int n)
-                {   
-                    int idx = threadIdx.x + blockIdx.x * blockDim.x;
-                    if (idx < n) c[idx] = a[idx] + b[idx];
-                }
-                """) 
+            func = mod.get_function("add_gpu_vpv")
         else:
             # Use `Add_to_each_element_GPU` Kernel
-            mod = SourceModule("""
-                __global__ void add_device_mem_gpu_vps(float *a, const float b, float *c, const int n)
-                {   
-                    int idx = threadIdx.x + blockIdx.x * blockDim.x;
-                    if (idx < n) c[idx] = a[idx] + b;
-                }
-                """)
+            func = mod.get_function("add_gpu_vps")
 
         # Get grid and block dim
         blockDim  = (self.blocksize, 1, 1)
         gridDim   = (length // self.blocksize + 1, 1, 1)
         
         # Record execution time and call the kernel loaded to the device
-        if (is_b_a_vector):
-            func = mod.get_function("add_device_mem_gpu_vpv")
-        else:
-            func = mod.get_function("add_device_mem_gpu_vps")
         start.record()
         func(a_gpu, b_gpu, c_gpu, np.int32(int(length)), block=blockDim, grid = gridDim)
 
         # Wait for the event to complete
-        end.record() 
+        end.record()
         end.synchronize()
 
         # Copy result from device to the host
@@ -144,37 +141,21 @@ class CudaModule:
         gridDim   = (length // self.blocksize + 1, 1, 1)
 
         # Call the kernel function from the compiled module
-        if (is_b_a_vector == True):
-            # Use `Add_two_vectors_GPU` Kernel.
-            mod = SourceModule("""
-                __global__ void add_host_mem_gpu_vpv(float *a, float *b, float *c, const int n)
-                {   
-                    int idx = threadIdx.x + blockIdx.x * blockDim.x;
-                    if (idx < n) c[idx] = a[idx] + b[idx];
-                }
-                """) 
-        else:
-            # Use `Add_to_each_element_GPU` Kernel
-            mod = SourceModule("""
-                __global__ void add_host_mem_gpu_vps(float *a, const float b, float *c, const int n)
-                {   
-                    int idx = threadIdx.x + blockIdx.x * blockDim.x;
-                    if (idx < n) c[idx] = a[idx] + b;
-                }
-                """)
+        mod = self.mod
         
         # Record execution time and call the kernel loaded to the device
         if (is_b_a_vector):
-            func = mod.get_function("add_host_mem_gpu_vpv")
+            func = mod.get_function("add_gpu_vpv")
         else:
-            func = mod.get_function("add_host_mem_gpu_vps")
+            func = mod.get_function("add_gpu_vps")
         start.record()
         if (is_b_a_vector):
             func(cuda.In(a), cuda.In(b), cuda.Out(c), np.int32(length), block=blockDim, grid = gridDim)
         else:
             func(cuda.In(a), b         , cuda.Out(c), np.int32(length), block=blockDim, grid = gridDim)
+
         # Wait for the event to complete
-        end.record() 
+        end.record()
         end.synchronize()
 
         # return a tuple of output of addition and time taken to execute the operation.
@@ -217,7 +198,7 @@ class CudaModule:
         c_gpu = a_gpu + b_gpu
 
         # Wait for the event to complete
-        end.record() 
+        end.record()
         end.synchronize()
 
         # Fetch result from device to host
@@ -249,16 +230,9 @@ class CudaModule:
         # Get function defined in class defination
 
         # Use `Add_two_vectors_GPU` Kernel.
-        mod = SourceModule("""
-            __global__ void add_gpuarray(float *a, float *b, float *c, const int n)
-            {   
-                int idx = threadIdx.x + blockIdx.x * blockDim.x;
-                if (idx < n) c[idx] = a[idx] + b[idx];
-            }
-            """) 
+        mod = self.mod
 
-        func = mod.get_function("add_gpuarray")
-
+        func = mod.get_function("add_gpu_vpv")
 
         # Allocate device memory for a, b, output of addition using gpuarray class
         a_gpu = gpuarray.to_gpu(a)
@@ -278,8 +252,8 @@ class CudaModule:
         func(a_gpu, b_gpu, c_gpu, np.int32(length), block = blockDim, grid = gridDim)
 
         # Wait for the event to complete
-        end.record() 
         end.synchronize()
+        end.record() 
 
         # Fetch result from device to host
         c = c_gpu.get()
