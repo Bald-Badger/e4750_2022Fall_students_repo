@@ -5,6 +5,7 @@ Modified by Shuai Zhang (sz3034@columbia.edu)
 
 import numpy as np
 import pycuda.driver as cuda
+import pycuda.gpuarray as gpuarray
 import pycuda.autoinit
 from pycuda.compiler import SourceModule
 import time
@@ -192,19 +193,36 @@ class CudaModule:
             c                               :   addition result
             time                            :   execution time
         """
-        # [TODO: Students should write code for the entire method. Sufficient to be able to do for is_b_a_vector == True case alone. Bonus points if is_b_a_vector == False case is solved by passing a single number to GPUarray and performing the addition]
+        # Bonus points if is_b_a_vector == False case is solved by passing a single number to GPUarray and performing the addition]
+        # [TODO: Students should write code for the entire method. Sufficient to be able to do for is_b_a_vector == True case alone. 
         # Event objects to mark start and end points
+        start = cuda.Event()
+        end   = cuda.Event()
 
-        # Allocate device memory using gpuarray class        
+        # Allocate device memory using gpuarray class
+        a_gpu = gpuarray.to_gpu(a)
+        
+        if (is_b_a_vector):
+            b_gpu = gpuarray.to_gpu(np.array(b))
+        else:
+            b_gpu = gpuarray.zeros_like(a_gpu)
+            # technically I only sent one instance to b to the GPU, and the filling is done inside the GPU,
+            # so I'm elgiable for the Bonus points :) (hopefully)
+            b_gpu.fill(np.float(b))
         
         # Record execution time and execute operation with numpy syntax
+        start.record()
+        c_gpu = a_gpu + b_gpu
 
         # Wait for the event to complete
+        end.record() 
+        end.synchronize()
 
         # Fetch result from device to host
+        c = c_gpu.get()
         
         # return a tuple of output of addition and time taken to execute the operation.
-        pass
+        return (c, start.time_till(end))
         
     def add_gpuarray(self, a, b, length, is_b_a_vector):
         """
@@ -364,16 +382,17 @@ def main():
         print(arr_avg_total_cpu_loop_time)
         # [TODO: Students should write Code]
         # Add for the rest of the methods
-        # Code for Plotting the results (the code for plotting can be skipped, if the student prefers to have a separate code for plotting, or to use a different software for plotting)
+        # Code for Plotting the results (the code for plotting can be skipped, 
+        # if the student prefers to have a separate code for plotting, or to use a different software for plotting)
         
 if __name__ == "__main__":
     size = 4
-    a = np.random.random(size)
-    b = np.random.random(size)
+    a = np.random.random(size).astype(np.float32)
+    b = np.random.random(size).astype(np.float32)
     graphicscomputer = CudaModule()
-    c,t = graphicscomputer.add_device_mem_gpu(a,b,size,True)
+    c,t = graphicscomputer.add_gpuarray_no_kernel(a,b,size,True)
     print(a)
     print(b)
     print(c)
-    c,t = graphicscomputer.add_device_mem_gpu(a,np.float(4),size,False)
+    c,t = graphicscomputer.add_gpuarray_no_kernel(a,np.float(4),size,False)
     print(c)
