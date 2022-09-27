@@ -3,7 +3,8 @@ The code in this file is part of the instructor-provided template for Assignment
 """
 
 import numpy as np
-import relevant.libraries
+import pyopencl as cl
+import time
 
 class clModule:
     def __init__(self):
@@ -57,9 +58,12 @@ class clModule:
                 }
             }
 
-            __kernel void Add_to_each_element_GPU( # Input Arguments )
+            __kernel void Add_to_each_element_GPU(__global float* c, __global float* a, __global float* b, const unsigned int n)
             {
-                # Kernel code to add a number to each element in the vector.
+                unsigned int i = get_global_id(0);
+                if (i < n) {
+                    c[i] = a[i] + b[0];
+                }
             }
         """ 
         
@@ -87,8 +91,10 @@ class clModule:
         # execute operation.
         if (is_b_a_vector == True):
             # Use `Add_two_vectors_GPU` Kernel.
+            pass
         else:
             # Use `Add_to_each_element_GPU` Kernel
+            pass
 
         # wait for execution to complete.
 
@@ -108,21 +114,37 @@ class clModule:
         """
         # [TODO: Students should write code for the entire method for both cases of is_b_a_vector]
         # Create three buffers (plans for areas of memory on the device)
+        start = time.time()
+        
+        mf = cl.mem_flags
+        a_gpu = cl.Buffer(self.ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=a)
+        if (is_b_a_vector):
+            b_gpu = cl.Buffer(self.ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=b)
+        else:
+            b_arr = np.zeros(1).astype(np.float32)
+            b_arr[0] = b
+            b_gpu = cl.Buffer(self.ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=b_arr)
+        c_gpu = cl.Buffer(self.ctx, mf.WRITE_ONLY, a.nbytes)
 
         # execute operation.
-        if (is_b_a_vector == True):
+        if (is_b_a_vector):
             # Use `Add_two_vectors_GPU` Kernel.
+            kernel = self.prg.Add_two_vectors_GPU
         else:
             # Use `Add_to_each_element_GPU` Kernel
-        
-        # Wait for execution to complete.
-        
-        # Copy output from GPU to CPU [Use enqueue_copy]
+            kernel = self.prg.Add_to_each_element_GPU
 
+        # Wait for execution to complete.
+        kernel(self.queue, a.shape, None, c_gpu, a_gpu, b_gpu, length)
+
+        # Copy output from GPU to CPU [Use enqueue_copy]
+        c = np.zeros_like(a)
+        cl.enqueue_copy(self.queue, c, c_gpu)
         # Record execution time.
+        end = time.time()
 
         # return a tuple of output of addition and time taken to execute the operation.
-        pass
+        return c, (start - end) * 1e6 # in us
 
     def CPU_numpy_Add(self, a, b, length, is_b_a_vector):
         """
@@ -160,7 +182,8 @@ class clModule:
 
         return c, end - start
 
-if __name__ == "__main__":
+
+def main():
     # List all main methods
     all_main_methods = ['CPU numpy Add', 'CPU_Loop_Add', 'DeviceAdd', 'BufferAdd']
     # List the two operations
@@ -249,3 +272,16 @@ if __name__ == "__main__":
         # [TODO: Students should write Code]
         # Add for the rest of the methods
         # Code for Plotting the results (the code for plotting can be skipped, if the student prefers to have a separate code for plotting, or to use a different software for plotting)
+
+if __name__ == "__main__":
+    # main()
+    size = np.int32(4)
+    a = np.random.random(size).astype(np.float32)
+    b = np.random.random(size).astype(np.float32)
+    print(a)
+    print(b)
+    graphicscomputer = clModule()
+    c, t0 = graphicscomputer.bufferAdd(a,b,size,True)
+    print(c)
+    c, t0 = graphicscomputer.bufferAdd(a,np.float(4),size,False)
+    print(c)
