@@ -3,12 +3,14 @@ The code in this file is part of the instructor-provided template for Assignment
 Modified by Shuai Zhang (sz3034@columbia.edu)
 """
 
+from cProfile import label
 import numpy as np
 import pycuda.driver as cuda
 import pycuda.gpuarray as gpuarray
 import pycuda.autoinit
 from pycuda.compiler import SourceModule
 import time
+import matplotlib.pyplot as plt
 
 class CudaModule:
     def __init__(self, blocksize=None):
@@ -315,10 +317,14 @@ class CudaModule:
         return c, (end - start) * 1e6 # return in us
 
 def main():
+    # init plot variables
+    cpu_plt,     (c1, c2)         = plt.subplots(2, 1, figsize=(10, 10))
+    inc_mem_plt, (i1, i2 ,i3 ,i4) = plt.subplots(4, 1,figsize=(10, 20))
+    exc_mem_plt, (e1, e2 ,e3)     = plt.subplots(3, 1, figsize=(10, 15))
+    
     # List all main methods
-    # all_main_methods = ['CPU Add', 'CPU_Loop_Add', 'add_device_mem_gpu', 'add_host_mem_gpu', 
-    # 'add_gpuarray_no_kernel', 'add_gpuarray_using_kernel']
-    all_main_methods = ['CPU Add', 'add_device_mem_gpu', 'add_host_mem_gpu', 'add_gpuarray_no_kernel', 'add_gpuarray_using_kernel']
+    all_main_methods = ['CPU Add', 'CPU_Loop_Add', 'add_device_mem_gpu', 'add_host_mem_gpu', 'add_gpuarray_no_kernel', 'add_gpuarray_using_kernel']
+    # all_main_methods = ['CPU Add', 'add_device_mem_gpu', 'add_host_mem_gpu', 'add_gpuarray_no_kernel', 'add_gpuarray_using_kernel']
     # List the two operations
     all_operations = ['Pass Vector and Number', 'Pass Two Vectors']
     # List the size of vectors
@@ -334,7 +340,7 @@ def main():
     valid_main_methods = all_main_methods
 
     # Select the list of valid vector_sizes for current_analysis
-    valid_vector_sizes = vector_sizes[0:6]
+    valid_vector_sizes = vector_sizes[0:5]
 
     # Create an instance of the CudaModule class
     graphicscomputer = CudaModule()
@@ -523,18 +529,72 @@ def main():
         
         # Code for Plotting the results (the code for plotting can be skipped, 
         # if the student prefers to have a separate code for plotting, or to use a different software for plotting)
+        # inc_mem_plt, (i1, i2 ,i3 ,i4 ,i5 ,i6) = plt.subplot(6, 1, 1)
+        # exc_mem_plt, (e1, e2 ,e3 ,e4 ,e5 ,e6) = plt.subplot(6, 1, 1)
+        x = np.arange(1,arr_avg_total_cpu_time.shape[0] + 1)
 
-def mytest():
-    size = np.int32(4)
-    a = np.random.random(size).astype(np.float32)
-    b = np.random.random(size).astype(np.float32)
-    graphicscomputer = CudaModule()
-    c,t = graphicscomputer.add_device_mem_gpu(a,b,size,True)
-    print(a)
-    print(b)
-    print(c)
-    c,t = graphicscomputer.add_device_mem_gpu(a,np.float(4),size,False)
-    print(c)
+        # plot CPU time useage
+        plt.figure(1)
+        y = np.log10(arr_avg_total_cpu_time)
+        c1.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
+        c1.legend()
+        c1.title.set_text('CPU vector')
+        
+        y = np.log10(arr_avg_total_cpu_loop_time)
+        c2.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
+        c2.legend()
+        c2.title.set_text('CPU loop')
+        
+        # Plot the average execution times (including memory transfer for GPU operations) 
+        # against the increasing array size (in orders of L) for array sizes   
+        plt.figure(2)
+        y = np.log10(arr_avg_total_add_device_mem_gpu_time_inc_mem)
+        i1.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
+        i1.legend()
+        i1.title.set_text('add_device_mem_gpu')
+        
+        y = np.log10(arr_avg_total_add_host_mem_gpu_time_inc_mem)
+        i2.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
+        i2.legend()
+        i2.title.set_text('add_host_mem_gpu')
+        
+        y = np.log10(arr_avg_total_add_gpuarray_no_kernel_time_inc_mem)
+        i3.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
+        i3.legend()
+        i3.title.set_text('add_gpuarray_no_kernel')
+        
+        y = np.log10(arr_avg_total_add_gpuarray_using_kernel_time_inc_mem)
+        i4.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
+        i4.legend()
+        i4.title.set_text('add_gpuarray_using_kernel')
+        
+        # (4 points) Plot the average execution times (excluding memory transfer for GPU operations) 
+        # against the increasing array size (in orders of L) for array sizes
+        plt.figure(3)
+        y = np.log10(arr_avg_total_add_device_mem_gpu_time_exc_mem)
+        e1.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
+        e1.legend()
+        e1.title.set_text('add_device_mem_gpu')
+        
+        y = np.log10(arr_avg_total_add_gpuarray_no_kernel_time_exc_mem)
+        e2.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
+        e2.legend()
+        e2.title.set_text('add_gpuarray_no_kernel')
+        
+        y = np.log10(arr_avg_total_add_gpuarray_using_kernel_time_exc_mem)
+        e3.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
+        e3.legend()
+        e3.title.set_text('add_gpuarray_using_kernel')
+    
+    plt.figure(1)
+    plt.savefig("cpu.png")
+    
+    plt.figure(2)
+    plt.savefig("inc.png")
+    
+    plt.figure(3)
+    plt.savefig("exc.png")
+
 
 if __name__ == "__main__":
     # mytest()
