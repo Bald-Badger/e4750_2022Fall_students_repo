@@ -351,10 +351,18 @@ def main():
         arr_avg_total_cpu_loop_time = np.array([])
         # [TODO: Students should write Code]
         # Add for the rest of the methods
-        arr_avg_total_add_device_mem_gpu_time = np.array([])
-        arr_avg_total_add_host_mem_gpu_time = np.array([])
-        arr_avg_total_add_gpuarray_no_kernel_time = np.array([])
-        arr_avg_total_add_gpuarray_using_kernel_time = np.array([])
+        
+        # time array that includes memory transfer
+        arr_avg_total_add_device_mem_gpu_time_inc_mem = np.array([])
+        arr_avg_total_add_host_mem_gpu_time_inc_mem = np.array([])
+        arr_avg_total_add_gpuarray_no_kernel_time_inc_mem = np.array([])
+        arr_avg_total_add_gpuarray_using_kernel_time_inc_mem = np.array([])
+
+        # time array that excludes memory transfer
+        arr_avg_total_add_device_mem_gpu_time_exc_mem = np.array([])
+        arr_avg_total_add_host_mem_gpu_time_exc_mem = np.array([]) # should not be used
+        arr_avg_total_add_gpuarray_no_kernel_time_exc_mem = np.array([])
+        arr_avg_total_add_gpuarray_using_kernel_time_exc_mem = np.array([])
 
         # loop throuh size = 10^0 - 10^6
         for vector_size in valid_vector_sizes:
@@ -363,10 +371,18 @@ def main():
             arr_total_cpu_loop_time = np.array([])
             # [TODO: Students should write Code]
             # Add for the rest of the methods
-            arr_total_add_device_mem_gpu_time = np.array([])
-            arr_total_add_host_mem_gpu_time = np.array([])
-            arr_total_add_gpuarray_no_kernel_time = np.array([])
-            arr_total_add_gpuarray_using_kernel_time = np.array([])
+            
+            # time array that includes memory transfer
+            arr_total_add_device_mem_gpu_time_inc_mem = np.array([])
+            arr_total_add_host_mem_gpu_time_inc_mem = np.array([])
+            arr_total_add_gpuarray_no_kernel_time_inc_mem = np.array([])
+            arr_total_add_gpuarray_using_kernel_time_inc_mem = np.array([])
+            
+            # time array that excludes memory transfer
+            arr_total_add_device_mem_gpu_time_exc_mem = np.array([])
+            arr_total_add_host_mem_gpu_time_exc_mem = np.array([]) # should not be used
+            arr_total_add_gpuarray_no_kernel_time_exc_mem = np.array([])
+            arr_total_add_gpuarray_using_kernel_time_exc_mem = np.array([])
 
             print ("vectorlength")
             print (vector_size)
@@ -404,8 +420,9 @@ def main():
                     # [TODO: Students should write Code]
                     
                     if (current_method == 'add_device_mem_gpu'):
-                        add_device_mem_gpu_result, add_device_mem_gpu_time  = graphicscomputer.add_device_mem_gpu(a_array_np,b_in,vector_size,is_b_a_vector)
-                        arr_total_add_device_mem_gpu_time = np.append(arr_total_add_device_mem_gpu_time, add_device_mem_gpu_time)
+                        add_device_mem_gpu_result, add_device_mem_gpu_time_inc_mem, add_device_mem_gpu_time_exc_mem = graphicscomputer.add_device_mem_gpu(a_array_np,b_in,vector_size,is_b_a_vector)
+                        arr_total_add_device_mem_gpu_time_inc_mem = np.append(arr_total_add_device_mem_gpu_time_inc_mem, add_device_mem_gpu_time_inc_mem)
+                        arr_total_add_device_mem_gpu_time_exc_mem = np.append(arr_total_add_device_mem_gpu_time_exc_mem, add_device_mem_gpu_time_exc_mem)
                         # check correctness
                         sum_diff = add_device_mem_gpu_result - c_np_cpu_add
                         total_diff = sum_diff.sum()
@@ -414,8 +431,9 @@ def main():
                             print (total_diff)
                     
                     if (current_method == 'add_host_mem_gpu'):
-                        add_host_mem_gpu_result, add_host_mem_gpu_time  = graphicscomputer.add_host_mem_gpu(a_array_np,b_in,vector_size,is_b_a_vector)
-                        arr_total_add_host_mem_gpu_time = np.append(arr_total_add_host_mem_gpu_time, add_host_mem_gpu_time)
+                        add_host_mem_gpu_result, add_host_mem_gpu_time_inc_mem, add_host_mem_gpu_time_exc_mem = graphicscomputer.add_host_mem_gpu(a_array_np,b_in,vector_size,is_b_a_vector)
+                        arr_total_add_host_mem_gpu_time_inc_mem = np.append(arr_total_add_host_mem_gpu_time_inc_mem, add_host_mem_gpu_time_inc_mem)
+                        arr_total_add_host_mem_gpu_time_exc_mem = None # this test scheme doesn not have expiclit memory transfer hence invalid entry
                         # check correctness
                         sum_diff = add_host_mem_gpu_result - c_np_cpu_add
                         total_diff = sum_diff.sum()
@@ -424,8 +442,9 @@ def main():
                             print (total_diff)
                     
                     if (current_method == 'add_gpuarray_no_kernel'):
-                        add_gpuarray_no_kernel_result, add_gpuarray_no_kernel_time  = graphicscomputer.add_gpuarray_no_kernel(a_array_np,b_in,vector_size,is_b_a_vector)
-                        arr_total_add_gpuarray_no_kernel_time = np.append(arr_total_add_gpuarray_no_kernel_time, add_gpuarray_no_kernel_time)
+                        add_gpuarray_no_kernel_result, add_gpuarray_no_kernel_time_inc_mem, add_gpuarray_no_kernel_time_exc_mem = graphicscomputer.add_gpuarray_no_kernel(a_array_np,b_in,vector_size,is_b_a_vector)
+                        arr_total_add_gpuarray_no_kernel_time_inc_mem = np.append(arr_total_add_gpuarray_no_kernel_time_inc_mem, add_gpuarray_no_kernel_time_inc_mem)
+                        arr_total_add_gpuarray_no_kernel_time_exc_mem = np.append(arr_total_add_gpuarray_no_kernel_time_exc_mem, add_gpuarray_no_kernel_time_exc_mem)
                         # check correctness
                         sum_diff = add_gpuarray_no_kernel_result - c_np_cpu_add
                         total_diff = sum_diff.sum()
@@ -434,8 +453,9 @@ def main():
                             print (total_diff)
                     
                     if (current_method == 'add_gpuarray_using_kernel'):
-                        add_gpuarray_using_kernel_result, add_gpuarray_using_kernel_time  = graphicscomputer.add_gpuarray(a_array_np,b_in,vector_size,is_b_a_vector)
-                        arr_total_add_gpuarray_using_kernel_time = np.append(arr_total_add_gpuarray_using_kernel_time, add_gpuarray_using_kernel_time)
+                        add_gpuarray_using_kernel_result, add_gpuarray_using_kernel_time_inc_mem ,add_gpuarray_using_kernel_time_exc_mem = graphicscomputer.add_gpuarray(a_array_np,b_in,vector_size,is_b_a_vector)
+                        arr_total_add_gpuarray_using_kernel_time_inc_mem = np.append(arr_total_add_gpuarray_using_kernel_time_inc_mem, add_gpuarray_using_kernel_time_inc_mem)
+                        arr_total_add_gpuarray_using_kernel_time_exc_mem = np.append(arr_total_add_gpuarray_using_kernel_time_exc_mem, add_gpuarray_using_kernel_time_exc_mem)
                         # check correctness
                         sum_diff = add_gpuarray_using_kernel_result - c_np_cpu_add
                         total_diff = sum_diff.sum()
@@ -451,38 +471,55 @@ def main():
             arr_avg_total_cpu_loop_time = np.append(arr_avg_total_cpu_loop_time, avg_total_cpu_loop_time)
 
             # [TODO: Students should write Code]
-            avg_total_add_device_mem_gpu_time = ((arr_total_add_device_mem_gpu_time.sum())/50)
-            arr_avg_total_add_device_mem_gpu_time = np.append(arr_avg_total_add_device_mem_gpu_time, avg_total_add_device_mem_gpu_time)
+            avg_total_add_device_mem_gpu_time_inc_mem = ((arr_total_add_device_mem_gpu_time_inc_mem.sum())/50)
+            arr_avg_total_add_device_mem_gpu_time_inc_mem = np.append(arr_avg_total_add_device_mem_gpu_time_inc_mem, avg_total_add_device_mem_gpu_time_inc_mem)
+            avg_total_add_device_mem_gpu_time_exc_mem = ((arr_total_add_device_mem_gpu_time_exc_mem.sum())/50)
+            arr_avg_total_add_device_mem_gpu_time_exc_mem = np.append(arr_avg_total_add_device_mem_gpu_time_exc_mem, avg_total_add_device_mem_gpu_time_exc_mem)
             
-            avg_total_add_host_mem_gpu_time = ((arr_total_add_host_mem_gpu_time.sum())/50)
-            arr_avg_total_add_host_mem_gpu_time = np.append(arr_avg_total_add_host_mem_gpu_time, avg_total_add_host_mem_gpu_time)
+            avg_total_add_host_mem_gpu_time_inc_mem = ((arr_total_add_host_mem_gpu_time_inc_mem.sum())/50)
+            arr_avg_total_add_host_mem_gpu_time_inc_mem = np.append(arr_avg_total_add_host_mem_gpu_time_inc_mem, avg_total_add_host_mem_gpu_time_inc_mem)
+            avg_total_add_host_mem_gpu_time_exc_mem = None
+            arr_avg_total_add_host_mem_gpu_time_exc_mem = None
             
-            avg_total_add_gpuarray_no_kernel_time = ((arr_total_add_gpuarray_no_kernel_time.sum())/50)
-            arr_avg_total_add_gpuarray_no_kernel_time = np.append(arr_avg_total_add_gpuarray_no_kernel_time, avg_total_add_gpuarray_no_kernel_time)
+            avg_total_add_gpuarray_no_kernel_time_inc_mem = ((arr_total_add_gpuarray_no_kernel_time_inc_mem.sum())/50)
+            arr_avg_total_add_gpuarray_no_kernel_time_inc_mem = np.append(arr_avg_total_add_gpuarray_no_kernel_time_inc_mem, avg_total_add_gpuarray_no_kernel_time_inc_mem)
+            avg_total_add_gpuarray_no_kernel_time_exc_mem = ((arr_total_add_gpuarray_no_kernel_time_exc_mem.sum())/50)
+            arr_avg_total_add_gpuarray_no_kernel_time_exc_mem = np.append(arr_avg_total_add_gpuarray_no_kernel_time_exc_mem, avg_total_add_gpuarray_no_kernel_time_exc_mem)
             
-            avg_total_add_gpuarray_using_kernel_time = ((arr_total_add_gpuarray_using_kernel_time.sum())/50)
-            arr_avg_total_add_gpuarray_using_kernel_time = np.append(arr_avg_total_add_gpuarray_using_kernel_time, avg_total_add_gpuarray_using_kernel_time)
-            
-            # Add for the rest of the methods
+            avg_total_add_gpuarray_using_kernel_time_inc_mem = ((arr_total_add_gpuarray_using_kernel_time_inc_mem.sum())/50)
+            arr_avg_total_add_gpuarray_using_kernel_time_inc_mem = np.append(arr_avg_total_add_gpuarray_using_kernel_time_inc_mem, avg_total_add_gpuarray_using_kernel_time_inc_mem)
+            avg_total_add_gpuarray_using_kernel_time_exc_mem = ((arr_total_add_gpuarray_using_kernel_time_exc_mem.sum())/50)
+            arr_avg_total_add_gpuarray_using_kernel_time_exc_mem = np.append(arr_avg_total_add_gpuarray_using_kernel_time_exc_mem, avg_total_add_gpuarray_using_kernel_time_exc_mem)
 
-        print(current_operation + " The CPU times are")
+        # Add for the rest of the methods
+
+        print(current_operation + " The CPU times in μs are")
         print(arr_avg_total_cpu_time)
-        print(current_operation + " The CPU Loop times are")
+        print(current_operation + " The CPU Loop times in μs are")
         print(arr_avg_total_cpu_loop_time)
+
         # [TODO: Students should write Code]
         # Add for the rest of the methods
         
-        print(current_operation + " The add_device_mem_gpu are")
-        print(arr_avg_total_add_device_mem_gpu_time)
+        print(current_operation + " The add_device_mem_gpu include mem transter in μs are")
+        print(arr_avg_total_add_device_mem_gpu_time_inc_mem)
+        print(current_operation + " The add_device_mem_gpu exclude mem transfer in μs are")
+        print(arr_avg_total_add_device_mem_gpu_time_exc_mem)
         
-        print(current_operation + " The add_host_mem_gpu are")
-        print(arr_avg_total_add_host_mem_gpu_time)
+        print(current_operation + " The add_host_mem_gpu include mem transter in μs are")
+        print(arr_avg_total_add_host_mem_gpu_time_inc_mem)
+        # print(current_operation + " The add_host_mem_gpu exclude mem transfer in μs are")
+        # print(arr_avg_total_add_host_mem_gpu_time)
         
-        print(current_operation + " The add_gpuarray_no_kernel are")
-        print(arr_avg_total_add_gpuarray_no_kernel_time)
+        print(current_operation + " The add_gpuarray_no_kernel include mem transter in μs are")
+        print(arr_avg_total_add_gpuarray_no_kernel_time_inc_mem)
+        print(current_operation + " The add_gpuarray_no_kernel exclude mem transfer in μs are")
+        print(arr_avg_total_add_gpuarray_no_kernel_time_exc_mem)
         
-        print(current_operation + " The add_gpuarray_using_kernel are")
-        print(arr_avg_total_add_gpuarray_using_kernel_time)
+        print(current_operation + " The add_gpuarray_using_kernel include mem transter in μs are")
+        print(arr_avg_total_add_gpuarray_using_kernel_time_inc_mem)
+        print(current_operation + " The add_gpuarray_using_kernel exclude mem transfer in μs are")
+        print(arr_avg_total_add_gpuarray_using_kernel_time_exc_mem)
         
         # Code for Plotting the results (the code for plotting can be skipped, 
         # if the student prefers to have a separate code for plotting, or to use a different software for plotting)
