@@ -616,6 +616,17 @@ def main():
     plt.savefig("exc.png")
 
 
+# this function is called for profiling
+def profile_code():
+    size = np.int32(100000000)
+    a = np.random.random(size).astype(np.float32)
+    b = np.random.random(size).astype(np.float32)
+    graphicscomputer = CudaModule()
+    c, t0, t1 = graphicscomputer.add_device_mem_gpu(a,b,size,True)
+    c, t0, t1 = graphicscomputer.add_device_mem_gpu(a,np.float(4),size,False)
+
+
 if __name__ == "__main__":
-    # mytest()
     main()
+    # profile_code()
+    
