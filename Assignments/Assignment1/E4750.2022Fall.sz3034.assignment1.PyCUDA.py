@@ -25,7 +25,7 @@ class CudaModule:
         # you will call from this class.
         self.mod = self.getSourceModule()
         if blocksize is None:
-            self.blocksize = 256
+            self.blocksize = 1000 # Tesla T4 have 2K5 cuda cores
 
     def getSourceModule(self):
         """
@@ -340,7 +340,7 @@ def main():
     valid_main_methods = all_main_methods
 
     # Select the list of valid vector_sizes for current_analysis
-    valid_vector_sizes = vector_sizes[0:5]
+    valid_vector_sizes = vector_sizes[0:8]
 
     # Create an instance of the CudaModule class
     graphicscomputer = CudaModule()
@@ -414,7 +414,7 @@ def main():
                         c_np_cpu_add, cpu_time_add = graphicscomputer.CPU_Add(a_array_np,b_in,vector_size,is_b_a_vector)
                         arr_total_cpu_time = np.append(arr_total_cpu_time, cpu_time_add)
 
-                    if(current_method == 'CPU_Loop_Add'):
+                    if(current_method == 'CPU_Loop_Add' and vector_size <= 1e6):
                         c_np_cpu_loop_add, cpu_time_loop_add = graphicscomputer.CPU_Loop_Add(a_array_np,b_in,vector_size,is_b_a_vector)
                         arr_total_cpu_loop_time = np.append(arr_total_cpu_loop_time, cpu_time_loop_add)
                         # check correctness
@@ -425,7 +425,7 @@ def main():
                             print (total_diff)
                     # [TODO: Students should write Code]
                     
-                    if (current_method == 'add_device_mem_gpu'):
+                    if (current_method == 'add_device_mem_gpu'): # gpu baseline
                         add_device_mem_gpu_result, add_device_mem_gpu_time_inc_mem, add_device_mem_gpu_time_exc_mem = graphicscomputer.add_device_mem_gpu(a_array_np,b_in,vector_size,is_b_a_vector)
                         arr_total_add_device_mem_gpu_time_inc_mem = np.append(arr_total_add_device_mem_gpu_time_inc_mem, add_device_mem_gpu_time_inc_mem)
                         arr_total_add_device_mem_gpu_time_exc_mem = np.append(arr_total_add_device_mem_gpu_time_exc_mem, add_device_mem_gpu_time_exc_mem)
@@ -531,42 +531,56 @@ def main():
         # if the student prefers to have a separate code for plotting, or to use a different software for plotting)
         # inc_mem_plt, (i1, i2 ,i3 ,i4 ,i5 ,i6) = plt.subplot(6, 1, 1)
         # exc_mem_plt, (e1, e2 ,e3 ,e4 ,e5 ,e6) = plt.subplot(6, 1, 1)
-        x = np.arange(1,arr_avg_total_cpu_time.shape[0] + 1)
 
         # plot CPU time useage
         plt.figure(1)
+        x = np.arange(1,arr_avg_total_cpu_time.shape[0] + 1)
         y = np.log10(arr_avg_total_cpu_time)
         c1.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
         c1.legend()
         c1.title.set_text('CPU vector')
+        c1.set_xlabel('vector length in 10 log scale')
+        c1.set_ylabel('microsecond in 10 log scale')
         
+        x = np.arange(1,arr_avg_total_cpu_loop_time.shape[0] + 1)
         y = np.log10(arr_avg_total_cpu_loop_time)
         c2.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
         c2.legend()
         c2.title.set_text('CPU loop')
+        c2.set_xlabel('vector length in 10 log scale')
+        c2.set_ylabel('microsecond in 10 log scale')
         
         # Plot the average execution times (including memory transfer for GPU operations) 
         # against the increasing array size (in orders of L) for array sizes   
+        x = np.arange(1,arr_avg_total_add_device_mem_gpu_time_inc_mem.shape[0] + 1)
         plt.figure(2)
         y = np.log10(arr_avg_total_add_device_mem_gpu_time_inc_mem)
         i1.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
         i1.legend()
         i1.title.set_text('add_device_mem_gpu')
+        i1.set_xlabel('vector length in 10 log scale')
+        i1.set_ylabel('microsecond in 10 log scale')
         
         y = np.log10(arr_avg_total_add_host_mem_gpu_time_inc_mem)
         i2.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
         i2.legend()
         i2.title.set_text('add_host_mem_gpu')
+        i2.set_xlabel('vector length in 10 log scale')
+        i2.set_ylabel('microsecond in 10 log scale')
         
         y = np.log10(arr_avg_total_add_gpuarray_no_kernel_time_inc_mem)
         i3.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
         i3.legend()
         i3.title.set_text('add_gpuarray_no_kernel')
+        i3.set_xlabel('vector length in 10 log scale')
+        i3.set_ylabel('microsecond in 10 log scale')
         
         y = np.log10(arr_avg_total_add_gpuarray_using_kernel_time_inc_mem)
         i4.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
         i4.legend()
         i4.title.set_text('add_gpuarray_using_kernel')
+        i4.set_xlabel('vector length in 10 log scale')
+        i4.set_ylabel('microsecond in 10 log scale')
         
         # (4 points) Plot the average execution times (excluding memory transfer for GPU operations) 
         # against the increasing array size (in orders of L) for array sizes
@@ -575,16 +589,22 @@ def main():
         e1.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
         e1.legend()
         e1.title.set_text('add_device_mem_gpu')
+        e1.set_xlabel('vector length in 10 log scale')
+        e1.set_ylabel('microsecond in 10 log scale')
         
         y = np.log10(arr_avg_total_add_gpuarray_no_kernel_time_exc_mem)
         e2.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
         e2.legend()
         e2.title.set_text('add_gpuarray_no_kernel')
+        e2.set_xlabel('vector length in 10 log scale')
+        e2.set_ylabel('microsecond in 10 log scale')
         
         y = np.log10(arr_avg_total_add_gpuarray_using_kernel_time_exc_mem)
         e3.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
         e3.legend()
         e3.title.set_text('add_gpuarray_using_kernel')
+        e3.set_xlabel('vector length in 10 log scale')
+        e3.set_ylabel('microsecond in 10 log scale')
     
     plt.figure(1)
     plt.savefig("cpu.png")
