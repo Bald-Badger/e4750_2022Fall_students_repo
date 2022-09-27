@@ -4,6 +4,7 @@ The code in this file is part of the instructor-provided template for Assignment
 
 import numpy as np
 import pyopencl as cl
+import pyopencl.array as pycl_array
 import time
 
 class clModule:
@@ -87,23 +88,36 @@ class clModule:
         """
         # [TODO: Students should write code for the entire method for both cases of is_b_a_vector]
         # device memory allocation
+        start = time.time()
 
+        a_gpu = pycl_array.to_device(self.queue, a)
+        if (is_b_a_vector):
+            b_gpu = pycl_array.to_device(self.queue, b)
+        else:
+            b_arr = np.zeros(1).astype(np.float32)
+            b_arr[0] = b
+            b_gpu = pycl_array.to_device(self.queue, b_arr)
+        c_gpu = pycl_array.empty_like(a_gpu)
+        
         # execute operation.
-        if (is_b_a_vector == True):
+        if (is_b_a_vector):
             # Use `Add_two_vectors_GPU` Kernel.
-            pass
+            kernel = self.prg.Add_two_vectors_GPU
         else:
             # Use `Add_to_each_element_GPU` Kernel
-            pass
+            kernel = self.prg.Add_to_each_element_GPU
 
         # wait for execution to complete.
+        kernel(self.queue, a.shape, None, c_gpu.data, a_gpu.data, b_gpu.data, length)
 
         # Copy output from GPU to CPU [Use .get() method]
+        c = c_gpu.get()
 
         # Record execution time.
+        end = time.time()
 
         # return a tuple of output of addition and time taken to execute the operation.
-        pass
+        return c, (start - end) * 1e6 # in us
 
     def bufferAdd(self, a, b, length, is_b_a_vector):
         """
@@ -281,7 +295,7 @@ if __name__ == "__main__":
     print(a)
     print(b)
     graphicscomputer = clModule()
-    c, t0 = graphicscomputer.bufferAdd(a,b,size,True)
+    c, t0 = graphicscomputer.deviceAdd(a,b,size,True)
     print(c)
-    c, t0 = graphicscomputer.bufferAdd(a,np.float(4),size,False)
+    c, t0 = graphicscomputer.deviceAdd(a,np.float(4),size,False)
     print(c)
