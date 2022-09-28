@@ -173,7 +173,7 @@ class clModule:
         c = a + b
         end = time.time()
 
-        return c, end - start
+        return c, (end - start) * 1e6
 
     def CPU_Loop_Add(self, a, b, length, is_b_a_vector):
         """
@@ -194,7 +194,7 @@ class clModule:
                 c[index] = a[index] + b
         end = time.time()
 
-        return c, end - start
+        return c, (end - start) * 1e6
 
 
 def main():
@@ -209,13 +209,13 @@ def main():
 
     # Select the list of valid methods to perform (populate as you complete the methods).
     # Currently in template code only CPU Add and CPU Loop Add are complete.
-    valid_main_methods = all_main_methods[0:2]
+    valid_main_methods = all_main_methods[0:4]
 
     # Select the list of valid operations to be run
     valid_operations = all_operations
 
     # Select the list of valid vector_sizes for current_analysis
-    valid_vector_sizes = vector_sizes[0:6]
+    valid_vector_sizes = vector_sizes[0:5]
 
     # Create an instance of the clModule class
     graphicscomputer = clModule()
@@ -232,6 +232,8 @@ def main():
         arr_avg_total_cpu_loop_time = np.array([])
         # [TODO: Students should write Code]
         # Add for the rest of the methods
+        arr_avg_total_device_add_time = np.array([])
+        arr_avg_total_buffer_add_time = np.array([])
         
         for vector_size in valid_vector_sizes:
 
@@ -240,6 +242,8 @@ def main():
 
             # [TODO: Students should write Code]
             # Add for the rest of the methods
+            arr_total_device_add_time = np.array([])
+            arr_total_buffer_add_time = np.array([])
 
             print ("vectorlength")
             print (vector_size)
@@ -248,7 +252,6 @@ def main():
             b = 3 # Choose any number you desire
             b_number_np = np.float32(b) # storing as number having value b with datatype Float32
             b_array_np = b*np.ones(vector_size).astype(np.float32) # storing as array with all elements having equal value b as datatype Float32
-            percentdone = 0
             for iteration in iteration_indexes:
                 for current_method in valid_main_methods:
                     if(current_operation == 'Pass Vector and Number'):
@@ -257,38 +260,62 @@ def main():
                     else:
                         is_b_a_vector = True
                         b_in = b_array_np
+
                     if(current_method == 'CPU numpy Add'):
                         c_np_cpu_add, cpu_time_add = graphicscomputer.CPU_numpy_Add(a_array_np,b_in,vector_size,is_b_a_vector)
                         arr_total_cpu_time = np.append(arr_total_cpu_time, cpu_time_add)
-                    else:
-                        if(current_method == 'CPU_Loop_Add'):
-                            c_np_cpu_loop_add, cpu_time_loop_add = graphicscomputer.CPU_Loop_Add(a_array_np,b_in,vector_size,is_b_a_vector)
-                            sum_diff = c_np_cpu_loop_add - c_np_cpu_add
-                            arr_total_cpu_loop_time = np.append(arr_total_cpu_loop_time, cpu_time_loop_add)
+                    
+                    if(current_method == 'CPU_Loop_Add'):
+                        c_np_cpu_loop_add, cpu_time_loop_add = graphicscomputer.CPU_Loop_Add(a_array_np,b_in,vector_size,is_b_a_vector)
+                        sum_diff = c_np_cpu_loop_add - c_np_cpu_add
+                        arr_total_cpu_loop_time = np.append(arr_total_cpu_loop_time, cpu_time_loop_add)
                         
-                        # [TODO: Students should write Code]
-                        # Add for the rest of the methods
-                       
+                    # [TODO: Students should write Code]
+                    # Add for the rest of the methods
+                    if(current_method == 'DeviceAdd'): # baseline
+                        c_np_device_add, c_np_device_time = graphicscomputer.CPU_Loop_Add(a_array_np,b_in,vector_size,is_b_a_vector)
+                        arr_total_device_add_time = np.append(arr_total_device_add_time, c_np_device_time)
+
+                    if(current_method == 'BufferAdd'):
+                        c_np_buffer_add, c_np_buffer_time = graphicscomputer.CPU_Loop_Add(a_array_np,b_in,vector_size,is_b_a_vector)
+                        arr_total_buffer_add_time = np.append(arr_total_buffer_add_time, c_np_buffer_time)
+                        
+                        # test
+                        sum_diff = c_np_buffer_add - c_np_device_add
                         total_diff = sum_diff.sum()
                         if (total_diff != 0):
                             print (current_method + " " + current_operation + "sum mismatch")
                             print (total_diff)
+
             avg_total_cpu_time = ((arr_total_cpu_time.sum())/50)
             arr_avg_total_cpu_time = np.append(arr_avg_total_cpu_time, avg_total_cpu_time)
             avg_total_cpu_loop_time = ((arr_total_cpu_loop_time.sum())/50)
             arr_avg_total_cpu_loop_time = np.append(arr_avg_total_cpu_loop_time, avg_total_cpu_loop_time)
             # [TODO: Students should write Code]
             # Add for the rest of the methods
+            avg_total_device_add_time = ((arr_total_device_add_time.sum())/50)
+            arr_avg_total_device_add_time = np.append(arr_avg_total_device_add_time, avg_total_device_add_time)
+            avg_total_buffer_add_time = ((arr_total_buffer_add_time.sum())/50)
+            arr_avg_total_buffer_add_time = np.append(arr_avg_total_buffer_add_time, avg_total_buffer_add_time)
+            
+            
         print(current_operation + "The CPU times are")
         print(arr_avg_total_cpu_time)
         print(current_operation + " The CPU Loop times are")
         print(arr_avg_total_cpu_loop_time)
         # [TODO: Students should write Code]
         # Add for the rest of the methods
-        # Code for Plotting the results (the code for plotting can be skipped, if the student prefers to have a separate code for plotting, or to use a different software for plotting)
 
-if __name__ == "__main__":
-    # main()
+        print(current_operation + "The device add times are")
+        print(arr_avg_total_device_add_time)
+        print(current_operation + " The buffer add times are")
+        print(arr_avg_total_buffer_add_time)
+        
+        # Code for Plotting the results (the code for plotting can be skipped, if the student prefers to have a separate code for plotting, or to use a different software for plotting)
+        
+        
+        
+def myTest():
     size = np.int32(4)
     a = np.random.random(size).astype(np.float32)
     b = np.random.random(size).astype(np.float32)
@@ -299,3 +326,7 @@ if __name__ == "__main__":
     print(c)
     c, t0 = graphicscomputer.deviceAdd(a,np.float(4),size,False)
     print(c)
+
+if __name__ == "__main__":
+    main()
+    # myTest()
