@@ -210,7 +210,8 @@ def main():
     # List the size of vectors
     vector_sizes = 10**np.arange(1,9)
     # List iteration indexes
-    iteration_indexes = np.arange(1,50)
+    iter_cnt = 50
+    iteration_indexes = np.arange(1,iter_cnt)
 
     # Select the list of valid methods to perform (populate as you complete the methods).
     # Currently in template code only CPU Add and CPU Loop Add are complete.
@@ -220,7 +221,7 @@ def main():
     valid_operations = all_operations
 
     # Select the list of valid vector_sizes for current_analysis
-    valid_vector_sizes = vector_sizes[0:5]
+    valid_vector_sizes = vector_sizes[0:8]
 
     # Create an instance of the clModule class
     graphicscomputer = clModule()
@@ -266,11 +267,11 @@ def main():
                         is_b_a_vector = True
                         b_in = b_array_np
 
-                    if(current_method == 'CPU numpy Add'):
+                    if(current_method == 'CPU numpy Add' and vector_size <= 1e6):
                         c_np_cpu_add, cpu_time_add = graphicscomputer.CPU_numpy_Add(a_array_np,b_in,vector_size,is_b_a_vector)
                         arr_total_cpu_time = np.append(arr_total_cpu_time, cpu_time_add)
                     
-                    if(current_method == 'CPU_Loop_Add'):
+                    if(current_method == 'CPU_Loop_Add' and vector_size <= 1e6):
                         c_np_cpu_loop_add, cpu_time_loop_add = graphicscomputer.CPU_Loop_Add(a_array_np,b_in,vector_size,is_b_a_vector)
                         sum_diff = c_np_cpu_loop_add - c_np_cpu_add
                         arr_total_cpu_loop_time = np.append(arr_total_cpu_loop_time, cpu_time_loop_add)
@@ -292,15 +293,15 @@ def main():
                             print (current_method + " " + current_operation + "sum mismatch")
                             print (total_diff)
 
-            avg_total_cpu_time = ((arr_total_cpu_time.sum())/50)
+            avg_total_cpu_time = ((arr_total_cpu_time.sum())/iter_cnt)
             arr_avg_total_cpu_time = np.append(arr_avg_total_cpu_time, avg_total_cpu_time)
-            avg_total_cpu_loop_time = ((arr_total_cpu_loop_time.sum())/50)
+            avg_total_cpu_loop_time = ((arr_total_cpu_loop_time.sum())/iter_cnt)
             arr_avg_total_cpu_loop_time = np.append(arr_avg_total_cpu_loop_time, avg_total_cpu_loop_time)
             # [TODO: Students should write Code]
             # Add for the rest of the methods
-            avg_total_device_add_time = ((arr_total_device_add_time.sum())/50)
+            avg_total_device_add_time = ((arr_total_device_add_time.sum())/iter_cnt)
             arr_avg_total_device_add_time = np.append(arr_avg_total_device_add_time, avg_total_device_add_time)
-            avg_total_buffer_add_time = ((arr_total_buffer_add_time.sum())/50)
+            avg_total_buffer_add_time = ((arr_total_buffer_add_time.sum())/iter_cnt)
             arr_avg_total_buffer_add_time = np.append(arr_avg_total_buffer_add_time, avg_total_buffer_add_time)
             
             
@@ -336,8 +337,8 @@ def main():
         c2.set_ylabel('microsecond in 10 log scale')
         
         # plot gpu time useage
-        x = np.arange(1,arr_avg_total_device_add_time.shape[0] + 1)
         plt.figure(2)
+        x = np.arange(1,arr_avg_total_device_add_time.shape[0] + 1)
         y = np.log10(arr_avg_total_device_add_time)
         g1.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
         g1.legend()
