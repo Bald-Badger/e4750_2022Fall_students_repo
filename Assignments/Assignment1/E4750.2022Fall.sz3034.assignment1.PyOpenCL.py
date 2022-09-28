@@ -6,6 +6,7 @@ import numpy as np
 import pyopencl as cl
 import pyopencl.array as pycl_array
 import time
+import matplotlib.pyplot as plt
 
 class clModule:
     def __init__(self):
@@ -198,6 +199,10 @@ class clModule:
 
 
 def main():
+    # init plot variables
+    cpu_plt, (c1, c2) = plt.subplots(2, 1, figsize=(10, 10))
+    gpu_plt, (g1, g2) = plt.subplots(2, 1, figsize=(10, 10))
+    
     # List all main methods
     all_main_methods = ['CPU numpy Add', 'CPU_Loop_Add', 'DeviceAdd', 'BufferAdd']
     # List the two operations
@@ -312,8 +317,46 @@ def main():
         print(arr_avg_total_buffer_add_time)
         
         # Code for Plotting the results (the code for plotting can be skipped, if the student prefers to have a separate code for plotting, or to use a different software for plotting)
+        # plot cpu time useage
+        plt.figure(1)
+        x = np.arange(1,arr_avg_total_cpu_time.shape[0] + 1)
+        y = np.log10(arr_avg_total_cpu_time)
+        c1.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
+        c1.legend()
+        c1.title.set_text('CPU vector')
+        c1.set_xlabel('vector length in 10 log scale')
+        c1.set_ylabel('microsecond in 10 log scale')
         
+        x = np.arange(1,arr_avg_total_cpu_loop_time.shape[0] + 1)
+        y = np.log10(arr_avg_total_cpu_loop_time)
+        c2.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
+        c2.legend()
+        c2.title.set_text('CPU loop')
+        c2.set_xlabel('vector length in 10 log scale')
+        c2.set_ylabel('microsecond in 10 log scale')
         
+        # plot gpu time useage
+        x = np.arange(1,arr_avg_total_device_add_time.shape[0] + 1)
+        plt.figure(2)
+        y = np.log10(arr_avg_total_device_add_time)
+        g1.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
+        g1.legend()
+        g1.title.set_text('device_add_gpu')
+        g1.set_xlabel('vector length in 10 log scale')
+        g1.set_ylabel('microsecond in 10 log scale')
+        
+        y = np.log10(arr_avg_total_buffer_add_time)
+        g2.plot(x, y, label="V + V" if current_operation == 'Pass Two Vectors' else "V + S")
+        g2.legend()
+        g2.title.set_text('buffer_add_gpu')
+        g2.set_xlabel('vector length in 10 log scale')
+        g2.set_ylabel('microsecond in 10 log scale')
+        
+    plt.figure(1)
+    plt.savefig("opencl_cpu.png")
+    
+    plt.figure(2)
+    plt.savefig("opencl_gpu.png")
         
 def myTest():
     size = np.int32(4)
