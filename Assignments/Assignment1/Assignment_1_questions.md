@@ -51,7 +51,7 @@ You can also use time.time() to record execution time since the difference is us
 
 Your submission should contain 3 files.
 
-1. Project Report    : E4750.2022Fall.(uni).assignment1.report.PDF   : In PDF format containing information presented at (Homework-Reports.md) , the plots, print and profiling results, and the answers for theory questions. I recommend using A3 Page template since it gives more space to organize code, plots and print results better.
+1. Project Report    : E4750.2022Fall.(uni).assignment1.report.PDF   : In PDF format containing information presented at [Homework-Reports.md](https://github.com/eecse4750/e4750_2022Fall_students_repo/wiki/Homework-Reports) , the plots, print and profiling results, and the answers for theory questions. I recommend using A3 Page template since it gives more space to organize code, plots and print results better.
 2. PyCUDA solution   : E4750.2022Fall.(uni).assignment1.PyCUDA.py    : In .py format containing the methods and kernel codes, along with comments.
 3. PyOpenCL solution : E4750.2022Fall.(uni).assignment1.PyOpenCL.py  : In .py format containing the methods and kernel codes, along with comments.
 
