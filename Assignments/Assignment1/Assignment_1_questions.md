@@ -43,7 +43,7 @@ Consult the [git wiki page](https://github.com/eecse4750/e4750_2022Fall_students
 2. For examples related to PyOpenCL please refer to https://github.com/HandsOnOpenCL/Exercises-Solutions. However there is no such comprehensive list for PyCuda.
 3. Note: Sometimes synchronization is not required because of the order of operations you keep, consider the following example:
 4. Consider a case in which a kernel call is followed by an enqueue_copy call/ memcpy call from device to host,  in this case you can leave wait()/event.synchronize() out because the kernel call and the copy function call are enqueued in the proper sequence. Also generally copy from device to host call is blocking on host unless you explicitly use async copy in which case you will have to synchronize.
-5. In case you get error like: "device not ready" most likely the error is with synchronization.
+5. In case you get error like: "device not ready" most likely the error is with synchronization. One possible solution is to run the following code ```pycuda.driver.Context.synchronize()``` BEFORE ```start.time_till(end)```.
 You can also use time.time() to record execution time since the difference is usually very small.
 
 
