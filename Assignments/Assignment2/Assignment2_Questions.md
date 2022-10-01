@@ -53,6 +53,8 @@ You can also use time.time() to record execution time since the difference is us
 
 ## Programming Problem (80 points)
 
+All the timing, and plots should be taken from running the code in the Cloud Machine. DONOT produce analysis on personal machines.
+
 Your submission should contain 3 files.
 
 1. Project Report    : E4750.2022Fall.(uni).assignment2.report.PDF   : In PDF format containing information presented at [Homework-Reports.md](https://github.com/eecse4750/e4750_2022Fall_students_repo/wiki/Homework-Reports) , the plots, print and profiling results, and the answers for theory questions. I recommend using A3 Page template since it gives more space to organize code, plots and print results better.
