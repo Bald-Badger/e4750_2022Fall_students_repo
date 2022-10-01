@@ -43,7 +43,7 @@ Consult the [git wiki page](https://github.com/eecse4750/e4750_2022Fall_students
 2. For examples related to PyOpenCL please refer to https://github.com/HandsOnOpenCL/Exercises-Solutions. However there is no such comprehensive list for PyCuda.
 3. Note: Sometimes synchronization is not required because of the order of operations you keep, consider the following example:
 4. Consider a case in which a kernel call is followed by an enqueue_copy call/ memcpy call from device to host,  in this case you can leave wait()/event.synchronize() out because the kernel call and the copy function call are enqueued in the proper sequence. Also generally copy from device to host call is blocking on host unless you explicitly use async copy in which case you will have to synchronize.
-5. In case you get error like: "device not ready" most likely the error is with synchronization.
+5. In case you get error like: "device not ready" most likely the error is with synchronization. One possible solution is to run the following code ```pycuda.driver.Context.synchronize()``` BEFORE ```start.time_till(end)```.
 You can also use time.time() to record execution time since the difference is usually very small.
 
 
@@ -51,7 +51,7 @@ You can also use time.time() to record execution time since the difference is us
 
 Your submission should contain 3 files.
 
-1. Project Report    : E4750.2022Fall.(uni).assignment1.report.PDF   : In PDF format containing information presented at (Homework-Reports.md) , the plots, print and profiling results, and the answers for theory questions. I recommend using A3 Page template since it gives more space to organize code, plots and print results better.
+1. Project Report    : E4750.2022Fall.(uni).assignment1.report.PDF   : In PDF format containing information presented at [Homework-Reports.md](https://github.com/eecse4750/e4750_2022Fall_students_repo/wiki/Homework-Reports) , the plots, print and profiling results, and the answers for theory questions. I recommend using A3 Page template since it gives more space to organize code, plots and print results better.
 2. PyCUDA solution   : E4750.2022Fall.(uni).assignment1.PyCUDA.py    : In .py format containing the methods and kernel codes, along with comments.
 3. PyOpenCL solution : E4750.2022Fall.(uni).assignment1.PyOpenCL.py  : In .py format containing the methods and kernel codes, along with comments.
 
