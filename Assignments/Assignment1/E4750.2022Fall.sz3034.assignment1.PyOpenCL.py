@@ -118,7 +118,7 @@ class clModule:
         end = time.time()
 
         # return a tuple of output of addition and time taken to execute the operation.
-        return c, (start - end) * 1e6 # in us
+        return c, (start - end) * 1000000 # in us
 
     def bufferAdd(self, a, b, length, is_b_a_vector):
         """
@@ -159,7 +159,7 @@ class clModule:
         end = time.time()
 
         # return a tuple of output of addition and time taken to execute the operation.
-        return c, (start - end) * 1e6 # in us
+        return c, (start - end) * 1000000 # in us
 
     def CPU_numpy_Add(self, a, b, length, is_b_a_vector):
         """
@@ -174,7 +174,7 @@ class clModule:
         c = a + b
         end = time.time()
 
-        return c, (end - start) * 1e6
+        return c, (end - start) * 1000000
 
     def CPU_Loop_Add(self, a, b, length, is_b_a_vector):
         """
@@ -195,7 +195,7 @@ class clModule:
                 c[index] = a[index] + b
         end = time.time()
 
-        return c, (end - start) * 1e6
+        return c, (end - start) * 1000000
 
 
 def main():
@@ -210,7 +210,7 @@ def main():
     # List the size of vectors
     vector_sizes = 10**np.arange(1,9)
     # List iteration indexes
-    iter_cnt = 50
+    iter_cnt = 2
     iteration_indexes = np.arange(1,iter_cnt)
 
     # Select the list of valid methods to perform (populate as you complete the methods).
@@ -267,7 +267,7 @@ def main():
                         is_b_a_vector = True
                         b_in = b_array_np
 
-                    if(current_method == 'CPU numpy Add' and vector_size <= 1e6):
+                    if(current_method == 'CPU numpy Add' and vector_size <= 1e7):
                         c_np_cpu_add, cpu_time_add = graphicscomputer.CPU_numpy_Add(a_array_np,b_in,vector_size,is_b_a_vector)
                         arr_total_cpu_time = np.append(arr_total_cpu_time, cpu_time_add)
                     
@@ -294,9 +294,11 @@ def main():
                             print (total_diff)
 
             avg_total_cpu_time = ((arr_total_cpu_time.sum())/iter_cnt)
-            arr_avg_total_cpu_time = np.append(arr_avg_total_cpu_time, avg_total_cpu_time)
+            if avg_total_cpu_time > 0:
+                arr_avg_total_cpu_time = np.append(arr_avg_total_cpu_time, avg_total_cpu_time)
             avg_total_cpu_loop_time = ((arr_total_cpu_loop_time.sum())/iter_cnt)
-            arr_avg_total_cpu_loop_time = np.append(arr_avg_total_cpu_loop_time, avg_total_cpu_loop_time)
+            if avg_total_cpu_loop_time > 0:
+                arr_avg_total_cpu_loop_time = np.append(arr_avg_total_cpu_loop_time, avg_total_cpu_loop_time)
             # [TODO: Students should write Code]
             # Add for the rest of the methods
             avg_total_device_add_time = ((arr_total_device_add_time.sum())/iter_cnt)

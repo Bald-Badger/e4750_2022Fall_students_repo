@@ -207,7 +207,8 @@ class CudaModule:
         
         # Record execution time and execute operation with numpy syntax
         comp.record()
-        c_gpu = a_gpu + b_gpu
+        # c_gpu = a_gpu + b_gpu
+        c_gpu = a_gpu.__add__(b_gpu)
 
         # Wait for the event to complete
         fin.record()
@@ -293,7 +294,7 @@ class CudaModule:
         c = a + b
         end = time.time()
 
-        return c, (end - start) * 1e6 # return in us
+        return c, (end - start) * 1000000 # return in us
 
     def CPU_Loop_Add(self, a, b, length, is_b_a_vector):
         """
@@ -314,7 +315,7 @@ class CudaModule:
                 c[index] = a[index] + b
         end = time.time()
 
-        return c, (end - start) * 1e6 # return in us
+        return c, (end - start) * 1000000 # return in us
 
 def main():
     # init plot variables
@@ -328,9 +329,10 @@ def main():
     # List the two operations
     all_operations = ['Pass Vector and Number', 'Pass Two Vectors']
     # List the size of vectors
-    vector_sizes = 10**np.arange(1,9, dtype=np.int32)
+    vector_sizes = 10**np.arange(1,10, dtype=np.int32)
     # List iteration indexes
-    iteration_indexes = np.arange(1,50)
+    iter_cnt = 8
+    iteration_indexes = np.arange(1,iter_cnt)
 
     # Select the list of valid operations to be run
     valid_operations = all_operations
@@ -470,31 +472,33 @@ def main():
                             print (total_diff)
 
                     # Add for the rest of the methods
-            avg_total_cpu_time = ((arr_total_cpu_time.sum())/50)
-            arr_avg_total_cpu_time = np.append(arr_avg_total_cpu_time, avg_total_cpu_time)
+            avg_total_cpu_time = ((arr_total_cpu_time.sum())/iter_cnt)
+            if avg_total_cpu_time > 0:
+                arr_avg_total_cpu_time = np.append(arr_avg_total_cpu_time, avg_total_cpu_time)
 
-            avg_total_cpu_loop_time = ((arr_total_cpu_loop_time.sum())/50)
-            arr_avg_total_cpu_loop_time = np.append(arr_avg_total_cpu_loop_time, avg_total_cpu_loop_time)
+            avg_total_cpu_loop_time = ((arr_total_cpu_loop_time.sum())/iter_cnt)
+            if avg_total_cpu_loop_time > 0: 
+                arr_avg_total_cpu_loop_time = np.append(arr_avg_total_cpu_loop_time, avg_total_cpu_loop_time)
 
             # [TODO: Students should write Code]
-            avg_total_add_device_mem_gpu_time_inc_mem = ((arr_total_add_device_mem_gpu_time_inc_mem.sum())/50)
+            avg_total_add_device_mem_gpu_time_inc_mem = ((arr_total_add_device_mem_gpu_time_inc_mem.sum())/iter_cnt)
             arr_avg_total_add_device_mem_gpu_time_inc_mem = np.append(arr_avg_total_add_device_mem_gpu_time_inc_mem, avg_total_add_device_mem_gpu_time_inc_mem)
-            avg_total_add_device_mem_gpu_time_exc_mem = ((arr_total_add_device_mem_gpu_time_exc_mem.sum())/50)
+            avg_total_add_device_mem_gpu_time_exc_mem = ((arr_total_add_device_mem_gpu_time_exc_mem.sum())/iter_cnt)
             arr_avg_total_add_device_mem_gpu_time_exc_mem = np.append(arr_avg_total_add_device_mem_gpu_time_exc_mem, avg_total_add_device_mem_gpu_time_exc_mem)
             
-            avg_total_add_host_mem_gpu_time_inc_mem = ((arr_total_add_host_mem_gpu_time_inc_mem.sum())/50)
+            avg_total_add_host_mem_gpu_time_inc_mem = ((arr_total_add_host_mem_gpu_time_inc_mem.sum())/iter_cnt)
             arr_avg_total_add_host_mem_gpu_time_inc_mem = np.append(arr_avg_total_add_host_mem_gpu_time_inc_mem, avg_total_add_host_mem_gpu_time_inc_mem)
             avg_total_add_host_mem_gpu_time_exc_mem = None
             arr_avg_total_add_host_mem_gpu_time_exc_mem = None
             
-            avg_total_add_gpuarray_no_kernel_time_inc_mem = ((arr_total_add_gpuarray_no_kernel_time_inc_mem.sum())/50)
+            avg_total_add_gpuarray_no_kernel_time_inc_mem = ((arr_total_add_gpuarray_no_kernel_time_inc_mem.sum())/iter_cnt)
             arr_avg_total_add_gpuarray_no_kernel_time_inc_mem = np.append(arr_avg_total_add_gpuarray_no_kernel_time_inc_mem, avg_total_add_gpuarray_no_kernel_time_inc_mem)
-            avg_total_add_gpuarray_no_kernel_time_exc_mem = ((arr_total_add_gpuarray_no_kernel_time_exc_mem.sum())/50)
+            avg_total_add_gpuarray_no_kernel_time_exc_mem = ((arr_total_add_gpuarray_no_kernel_time_exc_mem.sum())/iter_cnt)
             arr_avg_total_add_gpuarray_no_kernel_time_exc_mem = np.append(arr_avg_total_add_gpuarray_no_kernel_time_exc_mem, avg_total_add_gpuarray_no_kernel_time_exc_mem)
             
-            avg_total_add_gpuarray_using_kernel_time_inc_mem = ((arr_total_add_gpuarray_using_kernel_time_inc_mem.sum())/50)
+            avg_total_add_gpuarray_using_kernel_time_inc_mem = ((arr_total_add_gpuarray_using_kernel_time_inc_mem.sum())/iter_cnt)
             arr_avg_total_add_gpuarray_using_kernel_time_inc_mem = np.append(arr_avg_total_add_gpuarray_using_kernel_time_inc_mem, avg_total_add_gpuarray_using_kernel_time_inc_mem)
-            avg_total_add_gpuarray_using_kernel_time_exc_mem = ((arr_total_add_gpuarray_using_kernel_time_exc_mem.sum())/50)
+            avg_total_add_gpuarray_using_kernel_time_exc_mem = ((arr_total_add_gpuarray_using_kernel_time_exc_mem.sum())/iter_cnt)
             arr_avg_total_add_gpuarray_using_kernel_time_exc_mem = np.append(arr_avg_total_add_gpuarray_using_kernel_time_exc_mem, avg_total_add_gpuarray_using_kernel_time_exc_mem)
 
         # Add for the rest of the methods
@@ -607,13 +611,13 @@ def main():
         e3.set_ylabel('microsecond in 10 log scale')
     
     plt.figure(1)
-    plt.savefig("cpu.png")
+    plt.savefig("cuda_cpu.png")
     
     plt.figure(2)
-    plt.savefig("inc.png")
+    plt.savefig("cuda_inc.png")
     
     plt.figure(3)
-    plt.savefig("exc.png")
+    plt.savefig("cuda_exc.png")
 
 
 # this function is called for profiling
