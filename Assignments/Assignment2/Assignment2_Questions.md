@@ -194,7 +194,7 @@ class CudaModule:
         kernel_device = """
         #define TAYLOR_COEFFS 10000
 
-        float sine_taylor(float in)
+        __device__ float sine_taylor(float in)
         {
             [TODO]: STUDENTS SHOULD WRITE CODE FOR COMPUTING TAYLOR SERIES APPROXIMATION FOR SINE OF INPUT, WITH TAYLOR_COEFFS TERMS.
         }
@@ -361,7 +361,7 @@ class clModule:
 
         __kernel void main_function(float *input_value, float *computed_value, int n)
         {
-            TODO: STUDENTS TO WRITE KERNEL CODE MATHING FUNCTIONALITY (INLCUDING PRINT AND COMPILE TIME CONDITIONS) OF THE CUDA KERNEL.
+            TODO: STUDENTS TO WRITE KERNEL CODE MATCHING FUNCTIONALITY (INLCUDING PRINT AND COMPILE TIME CONDITIONS) OF THE CUDA KERNEL.
         }
         """
 
@@ -376,9 +376,9 @@ class clModule:
 
         # Compile kernel code and store it in self.module_*
 
-        self.module_no_print = SourceModule(kernel_device + kernel_main_wrapper)
-        self.module_with_print_nosync = SourceModule(kernel_printer + kernel_device + kernel_main_wrapper)
-        self.module_with_print_with_sync = SourceModule(kernel_printer_end + kernel_device + kernel_main_wrapper)
+        self.module_no_print = cl.Program(self.ctx, kernel_device + kernel_main_wrapper).build()
+        self.module_with_print_nosync = cl.Program(self.ctx, kernel_printer + kernel_device + kernel_main_wrapper).build()
+        self.module_with_print_with_sync = cl.Program(self.ctx, kernel_printer_end + kernel_device + kernel_main_wrapper).build()
         
         # Build kernel code
         # The context (which holds the GPU on which the code should run in) and the kernel code (stored as a string, allowing for metaprogramming if required) are passed onto cl.Program.
