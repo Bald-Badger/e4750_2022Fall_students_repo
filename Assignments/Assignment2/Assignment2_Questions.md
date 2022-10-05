@@ -28,6 +28,10 @@ For PyCUDA:
 2. [Memory tools](https://documen.tician.de/pycuda/util.html#memory-pools)
 3. [CUDA C++ Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html)
 
+Additional Readings (if interested):
+1. [Floating Point Accuracy](https://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html)
+2. [Kahan Summation](https://en.wikipedia.org/wiki/Kahan_summation_algorithm)
+
 ### Hints
 
 Few things which can help you in this homework. 
