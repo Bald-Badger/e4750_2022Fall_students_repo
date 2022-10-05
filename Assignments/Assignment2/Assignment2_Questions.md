@@ -17,6 +17,7 @@ The goal of this assignment is to get students familiar with programming in a mo
 3. [Python Raw Strings](https://www.pythontutorial.net/python-basics/python-raw-strings/)
 4. [Taylor Series](https://people.math.sc.edu/girardi/m142/handouts/10sTaylorPolySeries.pdf)
 5. [Taylor Series Video, if interested](https://www.youtube.com/watch?v=3d6DsjIBzJ4)
+6. [CUDA Math Library](https://docs.nvidia.com/cuda/cuda-math-api/group__CUDA__MATH__SINGLE.html#group__CUDA__MATH__SINGLE)
 
 For PyOpenCL:
 1. [OpenCL Runtime: Platforms, Devices & Contexts](https://documen.tician.de/pyopencl/runtime_platform.html)
