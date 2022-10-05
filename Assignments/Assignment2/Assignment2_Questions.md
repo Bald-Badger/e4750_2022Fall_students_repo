@@ -17,6 +17,7 @@ The goal of this assignment is to get students familiar with programming in a mo
 3. [Python Raw Strings](https://www.pythontutorial.net/python-basics/python-raw-strings/)
 4. [Taylor Series](https://people.math.sc.edu/girardi/m142/handouts/10sTaylorPolySeries.pdf)
 5. [Taylor Series Video, if interested](https://www.youtube.com/watch?v=3d6DsjIBzJ4)
+6. [CUDA Math Library](https://docs.nvidia.com/cuda/cuda-math-api/group__CUDA__MATH__SINGLE.html#group__CUDA__MATH__SINGLE)
 
 For PyOpenCL:
 1. [OpenCL Runtime: Platforms, Devices & Contexts](https://documen.tician.de/pyopencl/runtime_platform.html)
@@ -26,6 +27,10 @@ For PyCUDA:
 1. [Documentation Root](https://documen.tician.de/pycuda/index.html)
 2. [Memory tools](https://documen.tician.de/pycuda/util.html#memory-pools)
 3. [CUDA C++ Programming Guide](https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html)
+
+Additional Readings (if interested):
+1. [Floating Point Accuracy](https://docs.oracle.com/cd/E19957-01/806-3568/ncg_goldberg.html)
+2. [Kahan Summation](https://en.wikipedia.org/wiki/Kahan_summation_algorithm)
 
 ### Hints
 
@@ -52,6 +57,8 @@ You can also use time.time() to record execution time since the difference is us
 
 
 ## Programming Problem (80 points)
+
+All the timing, and plots should be taken from running the code in the Cloud Machine. DONOT produce analysis on personal machines.
 
 Your submission should contain 3 files.
 
@@ -94,8 +101,8 @@ This task involves using appropriate compiled kernel to perform different operat
 
 1. *(5 Points)* For array Sizes $(N = 10,10^2)$ use the kernel compiled in self.module_with_print_nosync (or equivalent in OpenCL) to make the sinusoid computations in GPU, and observe the print messages. Do you see any pattern? Describe the pattern. Why do you think this is so?
 2. *(5 Points)* For array Sizes $(N = 10,10^2)$ use the kernel compiled in self.module_with_print_with_sync to make the sinusoid computations in GPU, and observe the print messages. Do you see any pattern? Is it the same as the previous case? Why do you think this is so?
-3. *(5 Points)* For array Sizes $(N = 10,10^2,10^3...10^8,10^9)$ use the kernel compiled in self.module_no_print to make the sinusoid computations in GPU and time the execution including memory copy. Compare with CPU results (using function in template code). (Use 50 iterations in the main code and take the average)
-4. *(5 Points)* Change the sine_taylor function to compute for 5 taylor series terms by modifying the `kernel_device` function (Change to #define TAYLOR_COEFFS 5) For array Sizes $(N = 10,10^2,10^3...10^8,10^9)$ use the kernel compiled in self.module_no_print to make the sinusoid computations in GPU and time the execution including memory copy. Compare with CPU results (using function in template code). (Use 50 iterations in the main code and take the average)
+3. *(5 Points)* For array Sizes $(N = 10,10^2,10^3...10^8,10^9)$ use the kernel compiled in self.module_no_print to make the sinusoid computations in GPU and time the execution including memory copy. Compare with CPU results (using CPU function in template code). (Use 50 iterations in the main code and take the average). You may use numpy's isclose function for comparing the results.
+4. *(5 Points)* Change the sine_taylor function to compute for 5 taylor series terms by modifying the `kernel_device` function (Change to #define TAYLOR_COEFFS 5) For array Sizes $(N = 10,10^2,10^3...10^8,10^9)$ use the kernel compiled in self.module_no_print to make the sinusoid computations in GPU and time the execution including memory copy. Compare with CPU results (using CPU function in template code). (Use 50 iterations in the main code and take the average)
 5. *(5 CUDA + 5 OpenCL Points = 10 Points)* Plot timing results from GPU with 10000 Taylor Series Terms, GPU with 5 Taylor Series terms and CPU for array Sizes $(N = 10,10^2,10^3...10^8,10^9)$
 
 ## Theory Problems (20 points)
@@ -192,7 +199,7 @@ class CudaModule:
         kernel_device = """
         #define TAYLOR_COEFFS 10000
 
-        float sine_taylor(float in)
+        __device__ float sine_taylor(float in)
         {
             [TODO]: STUDENTS SHOULD WRITE CODE FOR COMPUTING TAYLOR SERIES APPROXIMATION FOR SINE OF INPUT, WITH TAYLOR_COEFFS TERMS.
         }
@@ -359,7 +366,7 @@ class clModule:
 
         __kernel void main_function(float *input_value, float *computed_value, int n)
         {
-            TODO: STUDENTS TO WRITE KERNEL CODE MATHING FUNCTIONALITY (INLCUDING PRINT AND COMPILE TIME CONDITIONS) OF THE CUDA KERNEL.
+            TODO: STUDENTS TO WRITE KERNEL CODE MATCHING FUNCTIONALITY (INLCUDING PRINT AND COMPILE TIME CONDITIONS) OF THE CUDA KERNEL.
         }
         """
 
@@ -374,9 +381,9 @@ class clModule:
 
         # Compile kernel code and store it in self.module_*
 
-        self.module_no_print = SourceModule(kernel_device + kernel_main_wrapper)
-        self.module_with_print_nosync = SourceModule(kernel_printer + kernel_device + kernel_main_wrapper)
-        self.module_with_print_with_sync = SourceModule(kernel_printer_end + kernel_device + kernel_main_wrapper)
+        self.module_no_print = cl.Program(self.ctx, kernel_device + kernel_main_wrapper).build()
+        self.module_with_print_nosync = cl.Program(self.ctx, kernel_printer + kernel_device + kernel_main_wrapper).build()
+        self.module_with_print_with_sync = cl.Program(self.ctx, kernel_printer_end + kernel_device + kernel_main_wrapper).build()
         
         # Build kernel code
         # The context (which holds the GPU on which the code should run in) and the kernel code (stored as a string, allowing for metaprogramming if required) are passed onto cl.Program.
