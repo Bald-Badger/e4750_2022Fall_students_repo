@@ -103,7 +103,7 @@ This task involves using appropriate compiled kernel to perform different operat
 2. *(5 Points)* For array Sizes $(N = 10,10^2)$ use the kernel compiled in self.module_with_print_with_sync to make the sinusoid computations in GPU, and observe the print messages. Do you see any pattern? Is it the same as the previous case? Why do you think this is so?
 3. *(5 Points)* For array Sizes $(N = 10,10^2,10^3...10^4)$ use the kernel compiled in self.module_no_print to make the sinusoid computations in GPU and time the execution including memory copy. Compare with CPU results (using CPU function in template code). (Use 50 iterations in the main code and take the average). You may use numpy's isclose function for comparing the results.
 4. *(5 Points)* Change the sine_taylor function to compute for 5 taylor series terms by modifying the `kernel_device` function (Change to #define TAYLOR_COEFFS 5) For array Sizes $(N = 10,10^2,10^3...10^6)$ use the kernel compiled in self.module_no_print to make the sinusoid computations in GPU and time the execution including memory copy. Compare with CPU results (using CPU function in template code). (Use 50 iterations in the main code and take the average)
-5. *(5 CUDA + 5 OpenCL Points = 10 Points)* Plot timing results from GPU with 10000 Taylor Series Terms, GPU with 5 Taylor Series terms and CPU for array Sizes $(N = 10,10^2,10^3...10^8,10^9)$
+5. *(5 CUDA + 5 OpenCL Points = 10 Points)* Plot timing results from GPU with 10000 Taylor Series Terms, GPU with 5 Taylor Series terms and CPU for array Sizes computed in question 3 and 4 (You can take the time to be 0 for array sizes not computed in Question 3 and plot).
 
 ## Theory Problems (20 points)
 
