@@ -70,7 +70,7 @@ Replace (uni) with your uni ID. An example report would be titled E4750.2022Fall
 
 ### Problem set up
 
-You are given a part of the template code in the main function to iterate between the 1D vectors (Float32 Datatype) having values $(0.001,0.002,0.003...0.001*N)$ with **N** taking values of $(10,10^2,10^3...10^9)$ for different CPU/GPU computation scenarios. The different scenarios to iterate in has been written in the form of a nested for loop with the CPU methods part completed. You are expected to follow the template and complete the code for performing GPU computation.
+You are given a part of the template code in the main function to iterate between the 1D vectors (Float32 Datatype) having values $(0.001,0.002,0.003...0.001*N)$ with **N** taking values of $(10,10^2,10^3...10^6)$ for different CPU/GPU computation scenarios. The different scenarios to iterate in has been written in the form of a nested for loop with the CPU methods part completed. You are expected to follow the template and complete the code for performing GPU computation.
 
 The programming section contains two tasks.
 1. Writing Kernel Code (For PyOpenCL and PyCUDA)
