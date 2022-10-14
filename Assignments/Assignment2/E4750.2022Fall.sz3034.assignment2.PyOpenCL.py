@@ -126,7 +126,8 @@ class clModule:
 
         return c, end - start
 
-if __name__ == "__main__":
+
+def main():
     # List all main methods
     all_main_methods = ['CPU Sine', 'deviceSine']
     # List the two operations
@@ -158,10 +159,16 @@ if __name__ == "__main__":
 
                 for current_method in valid_main_methods:
                     if(current_method == 'CPU Sine'):
+                        pass
                         #TODO: STUDENTS TO GET OUTPUT TIME AND COMPUTATION FROM CPU_Sine
                     else:
+                        pass
                         if(current_method == 'deviceSine'):
                             #TODO: STUDENTS TO GET OUTPUT TIME AND COMPUTATION FROM sine_device_mem_gpu
 
                         #TODO: STUDENTS TO COMPARE RESULTS USING ISCLOSE FUNCTION
         #TODO: STUDENTS CAN USE THIS SPACE TO WRITE NECESSARY TIMING ARRAYS, PERSONAL DEBUGGING PRINT STATEMENTS, ETC
+        
+
+if __name__ == "__main__":
+    pass

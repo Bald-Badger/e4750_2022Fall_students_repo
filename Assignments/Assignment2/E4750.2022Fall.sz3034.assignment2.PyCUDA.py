@@ -2,7 +2,14 @@
 The code in this file is part of the instructor-provided template for Assignment-1, task-2, Fall 2021. 
 """
 
-import relevant.libraries
+from cProfile import label
+import numpy as np
+import pycuda.driver as cuda
+import pycuda.gpuarray as gpuarray
+import pycuda.autoinit
+from pycuda.compiler import SourceModule
+import time
+import matplotlib.pyplot as plt
 
 class CudaModule:
     def __init__(self):
@@ -37,6 +44,7 @@ class CudaModule:
             int idx = threadIdx.x + blockIdx.x * blockDim.x;
             if((idx%2) == 0){
                 [TODO]: STUDENTS SHOULD WRITE CODE TO USE CUDA MATH FUNCTION TO COMPUTE SINE OF INPUT VALUE
+                computed_value[n] = sinf(input_value[idx]);
                 #ifdef PRINT_ENABLE_DEBUG
                 if(idx<n)
                 {
@@ -46,10 +54,12 @@ class CudaModule:
             }
             else{
                 [TODO]: STUDENTS SHOULD WRITE CODE TO CALL THE DEVICE FUNCTION sine_taylor TO COMPUTE SINE OF INPUT VALUE
+                computed_value[n] = sine_taylor(input_value[idx]);
                 #ifdef PRINT_ENABLE_DEBUG
                 if(idx<n)
                 {
                     [TODO]: STUDENTS SHOULD WRITE CODE TO PRINT THE INDEX OF THE ARRAY BEING COMPUTED
+                    printf("Hello from index %d \n", idx);
                 }
                 #endif
             }
@@ -58,18 +68,39 @@ class CudaModule:
             if(idx<n)
             {
                 [TODO]: STUDENTS SHOULD WRITE CODE TO PRINT THE INDEX OF THE ARRAY BEING COMPUTED
+                printf("index %d completed\n", idx);
             }
-            #endif     
+            #endif
         }
         """
 
         kernel_device = """
-        #define TAYLOR_COEFFS 10000
+            #define TAYLOR_COEFFS 1000
 
-        __device__ float sine_taylor(float in)
-        {
-            [TODO]: STUDENTS SHOULD WRITE CODE FOR COMPUTING TAYLOR SERIES APPROXIMATION FOR SINE OF INPUT, WITH TAYLOR_COEFFS TERMS.
-        }
+            double sine_taylor(double in) {
+                double result;           // final result
+                double term;             // untermediate term for each iter
+                double power = in;       // base case
+                double factorial = 1;    // base case
+                
+                double power_iter = in * in;
+                double factorial_iter;
+                
+                for (unsigned int i = 0; i < TAYLOR_COEFFS; i++) {
+                    
+                    term = power / factorial;
+                    
+                    power = power * power_iter;
+                    factorial_iter = factorial * (i + 2) * (i + 3);
+                    factorial = factorial * factorial_iter;
+                    
+                    if (i & 0x01)   // is odd
+                        result -= term;
+                    else            // is even
+                        result += term;
+                }
+                return result;
+            }
         """
 
         # Compile kernel code and store it in self.module_*
@@ -78,8 +109,11 @@ class CudaModule:
         self.module_with_print_nosync = SourceModule(kernel_printer + kernel_device + kernel_main_wrapper)
         self.module_with_print_with_sync = SourceModule(kernel_printer_end + kernel_device + kernel_main_wrapper)
 
-        # SourceModule is the Cuda.Compiler and the kernelwrapper text is given as input to SourceModule. This compiler takes in C code as text inside triple quotes (ie a string) and compiles it to CUDA code.
-        # When we call this getSourceModule method for an object of this class, it will return the compiled kernelwrapper function, which will now take inputs along with block_specifications and grid_specifications.
+        # SourceModule is the Cuda.Compiler and the kernelwrapper text is given as input to SourceModule. 
+        # This compiler takes in C code as text inside triple quotes (ie a string) and compiles it to CUDA code.
+        # When we call this getSourceModule method for an object of this class, 
+        # it will return the compiled kernelwrapper function, 
+        # which will now take inputs along with block_specifications and grid_specifications.
     
     def sine_device_mem_gpu(self, a, length, printing_properties):
         """
@@ -135,7 +169,7 @@ class CudaModule:
 
         return c, end - start
 
-if __name__ == "__main__":
+def main():
     # List all main methods
     all_main_methods = ['CPU Sine', 'Sine_device_mem_gpu']
     # List the two operations
@@ -163,10 +197,14 @@ if __name__ == "__main__":
 
                 for current_method in all_main_methods:
                     if(current_method == 'CPU Sine'):
+                        pass
                         #TODO: STUDENTS TO GET OUTPUT TIME AND COMPUTATION FROM CPU_Sine
-                    else:
-                        if(current_method == 'Sine_device_mem_gpu'):
-                            #TODO: STUDENTS TO GET OUTPUT TIME AND COMPUTATION FROM sine_device_mem_gpu
+                    if(current_method == 'Sine_device_mem_gpu'):
+                        pass
+                        #TODO: STUDENTS TO GET OUTPUT TIME AND COMPUTATION FROM sine_device_mem_gpu
 
                         #TODO: STUDENTS TO COMPARE RESULTS USING ISCLOSE FUNCTION
         #TODO: STUDENTS CAN USE THIS SPACE TO WRITE NECESSARY TIMING ARRAYS, PERSONAL DEBUGGING PRINT STATEMENTS, ETC
+        
+if __name__ == "__main__":
+    print("placeholder")
