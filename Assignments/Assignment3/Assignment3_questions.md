@@ -27,6 +27,18 @@ C(i,j) = sum (m = 0 to 4) {
 
 ### Programming Part (80 Points)
 
+All the timing, and plots should be taken from running the code in the Cloud Machine. DONOT produce analysis on personal machines.
+
+Your submission should contain 3 files.
+
+1. Project Report    : E4750.2022Fall.(uni).assignment3.report.PDF   : In PDF format containing information presented at [Homework-Reports.md](https://github.com/eecse4750/e4750_2022Fall_students_repo/wiki/Homework-Reports) , the plots, print and profiling results, and the answers for theory questions. I recommend using A3 Page template since it gives more space to organize code, plots and print results better.
+2. PyCUDA solution   : E4750.2022Fall.(uni).assignment3.PyCUDA.py    : In .py format containing the methods and kernel codes, along with comments.
+3. PyOpenCL solution : E4750.2022Fall.(uni).assignment3.PyOpenCL.py  : In .py format containing the methods and kernel codes, along with comments.
+
+Replace (uni) with your uni ID. An example report would be titled E4750.2022Fall.zk2172.assignment3.report.PDF 
+
+### Problem set up
+
 Follow the templates to create methods and the kernel code to perform the following
 
 (10 CUDA + 10 OpenCL = 20 Points) 1. Write a Kernel function to perform the above convolution operation without using shared memory or constant memory and name it `conv_gpu`. Define a python method `conv_gpu_naive` to call this kernel without incorporating the modular compile time defines (calling kernel stored in `self.module_naive_gpu` in the template code)
