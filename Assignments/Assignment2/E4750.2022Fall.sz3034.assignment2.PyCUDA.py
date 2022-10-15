@@ -43,7 +43,7 @@ class CudaModule:
         {
             int idx = threadIdx.x + blockIdx.x * blockDim.x;
             if((idx%2) == 0){
-                [TODO]: STUDENTS SHOULD WRITE CODE TO USE CUDA MATH FUNCTION TO COMPUTE SINE OF INPUT VALUE
+                // [TODO]: STUDENTS SHOULD WRITE CODE TO USE CUDA MATH FUNCTION TO COMPUTE SINE OF INPUT VALUE
                 computed_value[n] = sinf(input_value[idx]);
                 #ifdef PRINT_ENABLE_DEBUG
                 if(idx<n)
@@ -53,12 +53,12 @@ class CudaModule:
                 #endif
             }
             else{
-                [TODO]: STUDENTS SHOULD WRITE CODE TO CALL THE DEVICE FUNCTION sine_taylor TO COMPUTE SINE OF INPUT VALUE
-                computed_value[n] = sine_taylor(input_value[idx]);
+                // [TODO]: STUDENTS SHOULD WRITE CODE TO CALL THE DEVICE FUNCTION sine_taylor TO COMPUTE SINE OF INPUT VALUE
+                computed_value[n] = sinf(input_value[idx]);
                 #ifdef PRINT_ENABLE_DEBUG
                 if(idx<n)
                 {
-                    [TODO]: STUDENTS SHOULD WRITE CODE TO PRINT THE INDEX OF THE ARRAY BEING COMPUTED
+                    // [TODO]: STUDENTS SHOULD WRITE CODE TO PRINT THE INDEX OF THE ARRAY BEING COMPUTED
                     printf("Hello from index %d \n", idx);
                 }
                 #endif
@@ -67,7 +67,7 @@ class CudaModule:
             #ifdef PRINT_ENABLE_AFTER_COMPUTATION
             if(idx<n)
             {
-                [TODO]: STUDENTS SHOULD WRITE CODE TO PRINT THE INDEX OF THE ARRAY BEING COMPUTED
+                // [TODO]: STUDENTS SHOULD WRITE CODE TO PRINT THE INDEX OF THE ARRAY BEING COMPUTED
                 printf("index %d completed\n", idx);
             }
             #endif
@@ -128,12 +128,27 @@ class CudaModule:
             time                            :   execution time
         """
         # [TODO: Students should write code for the entire method for all cases of printing_properties]
+        a               = a.astype(np.float32)
+        o               = np.zeros(length, dtype=np.float32)
 
         # Event objects to mark the start and end points
+        start           = cuda.Event()
+        malloc_start    = cuda.Event()
+        malloc_end      = cuda.Event()
+        compute_start   = cuda.Event()
+        compute_end     = cuda.Event()
+        finish          = cuda.Event()
 
         # Device memory allocation for input and output arrays
+        start.record()
+        a_gpu           = cuda.mem_alloc(a.size * a.dtype.itemsize)
+        o_gpu           = cuda.mem_alloc(o.size * o.dtype.itemsize)
 
         # Copy data from host to device
+        malloc_start.record()
+        cuda.memcpy_htod(a_gpu, a)
+        cuda.memcpy_htod(o_gpu, o)
+        malloc_end.record()
 
         # Call the kernel function from the compiled module
         if(printing_properties == 'No Print'):
@@ -144,15 +159,25 @@ class CudaModule:
             prg = self.module_with_print_with_sync.get_function("main_function")
 
         # Get grid and block dim
-        
+        blockDim  = (self.threads_per_block_x, self.threads_per_block_y, self.threads_per_block_z)
+        gridDim   = (length // self.threads_total + 1, 1, 1)
+
         # Record execution time and call the kernel loaded to the device
+        # void main_function(float *input_value, float *computed_value, int n)
+        compute_start.record()
+        prg(a_gpu, o_gpu, np.int32(length), block=blockDim, grid=gridDim)
 
         # Wait for the event to complete
+        compute_end.record()
+        compute_end.synchronize()
 
         # Copy result from device to the host
+        cuda.memcpy_dtoh(o, o_gpu)
+        finish.record()
+        finish.synchronize()
 
         # return a tuple of output of sine computation and time taken to execute the operation.
-        pass
+        return (o, [start.time_till(finish)])
 
  
     def CPU_Sine(self, a, length, printing_properties):
@@ -207,4 +232,11 @@ def main():
         #TODO: STUDENTS CAN USE THIS SPACE TO WRITE NECESSARY TIMING ARRAYS, PERSONAL DEBUGGING PRINT STATEMENTS, ETC
         
 if __name__ == "__main__":
-    print("placeholder")
+    graphicscomputer = CudaModule()
+    length = 10
+    a_array_np = 0.001*np.arange(1,length+1).astype(np.float32)
+    my_answer, t0 = graphicscomputer.sine_device_mem_gpu(a_array_np, length, "Print")
+    reference, t1 = graphicscomputer.CPU_Sine(a_array_np, length, "Print")
+    print(a_array_np)
+    print(my_answer)
+    print(reference)
