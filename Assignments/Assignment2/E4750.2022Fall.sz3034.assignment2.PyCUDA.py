@@ -77,7 +77,7 @@ class CudaModule:
         """
 
         kernel_device = """
-            #define TAYLOR_COEFFS 5
+            #define TAYLOR_COEFFS 10000
 
             __device__ float sine_taylor(float in_raw) {
                 const float pi = 3.1415926f;
@@ -203,53 +203,6 @@ class CudaModule:
         return (c, (end - start) * 1000000) # in us
 
 
-def main():
-    iteration_cnt = 10
-    # List all main methods
-    all_main_methods = ['CPU Sine', 'Sine_device_mem_gpu']
-    # List the two operations
-    all_operations = ['No Print', 'Print', 'Sync then Print']
-    # List the size of vectors
-    vector_sizes = 10**np.arange(1,3)
-    # List iteration indexes
-    iteration_indexes = np.arange(1,iteration_cnt)
-    # Select the list of valid operations for profiling
-    valid_operations = all_operations
-
-    # Create an instance of the clModule class
-    graphicscomputer = CudaModule()
-
-    for current_operation in valid_operations:
-        #TODO: STUDENTS CAN USE THIS SPACE TO WRITE NECESSARY TIMING ARRAYS, PERSONAL DEBUGGING PRINT STATEMENTS, ETC
-        cpu_time_of_each_vector_size = np.array([])
-        gpu_time_of_each_vector_size = np.array([])
-
-        for vector_size in vector_sizes:
-            #TODO: STUDENTS CAN USE THIS SPACE TO WRITE NECESSARY TIMING ARRAYS, PERSONAL DEBUGGING PRINT STATEMENTS, ETC
-            cpu_time_of_each_iter = np.array([])
-            gpu_time_of_each_iter = np.array([])
-
-            #THE FOLLOWING VARIABLE SHOULD NOT BE CHANGED
-            a_array_np = 0.001*np.arange(1,vector_size+1).astype(np.float32) #Generates an Array of Numbers 0.001, 0.002, ... 
-
-            for iteration in iteration_indexes:
-                #TODO: STUDENTS CAN USE THIS SPACE TO WRITE NECESSARY TIMING ARRAYS, PERSONAL DEBUGGING PRINT STATEMENTS, ETC
-                cpu_answers_of_each_element = np.array([])
-                gpu_answers_of_each_element = np.array([]) # reference
-                for current_method in all_main_methods:
-                    if(current_method == 'CPU Sine'):
-                        #TODO: STUDENTS TO GET OUTPUT TIME AND COMPUTATION FROM CPU_Sine
-                        cpu_answers_of_each_element = graphicscomputer.CPU_Sine(a_array_np, None, None)
-                    if(current_method == 'Sine_device_mem_gpu'):
-                        #TODO: STUDENTS TO GET OUTPUT TIME AND COMPUTATION FROM sine_device_mem_gpu
-                        gpu_answers_of_each_element = graphicscomputer.sine_device_mem_gpu(a_array_np, a_array_np.size, current_operation)
-
-                #TODO: STUDENTS TO COMPARE RESULTS USING ISCLOSE FUNCTION
-                correctness = np.isclose(cpu_answers_of_each_element, gpu_answers_of_each_element)
-                        
-        #TODO: STUDENTS CAN USE THIS SPACE TO WRITE NECESSARY TIMING ARRAYS, PERSONAL DEBUGGING PRINT STATEMENTS, ETC
-
-
 def question12(): # code for task 2-1, 2-2
     graphicscomputer = CudaModule()
     length = 10
@@ -320,16 +273,15 @@ def question4():
         print("accuracy: {}".format(accurate_cnt / length))
         
 
-def question5():
+def question5_filegen():
     graphicscomputer = CudaModule()
     lengths = 10**np.arange(1,7)
     lengths = [ int(x) for x in lengths ]
+    times = []
     iter = 50
     for length in lengths:
         cpu_time = 0
         gpu_time = 0
-        reference = np.array([])
-        my_answer = np.array([])
         a_array_np = 0.001*np.arange(1,length+1).astype(np.float32)
         for i in range(iter):
             reference, t0 = graphicscomputer.CPU_Sine(a_array_np, length, "No Print")
@@ -338,16 +290,42 @@ def question5():
             gpu_time = gpu_time + t1[0]
         cpu_time = cpu_time / iter
         gpu_time = gpu_time / iter
-        print("length = {0}".format(length))
-        print("cpu time:    {:.3f}, average {:.3f} us per 100 operation".format(cpu_time, cpu_time/length*100))
-        print("gpu time: {:.3f}, average {:.3f} us per 100 operation".format(gpu_time, gpu_time/length*100))
-        accuracy = np.isclose(my_answer, reference)
-        accurate_cnt = 0
-        for item in accuracy:
-            if item == True:
-                accurate_cnt += 1
-        print("accuracy: {}".format(accurate_cnt / length))
+        times.append(gpu_time)
+
+    '''
+    step for saving result file are skipped
+    f = open ('XXX.pkl','wb')
+    pickle.dump(times, f)
+    f.close()
+    '''
+
+
+def question5_plot():
+    f = open("cpu_time.pkl",'rb')
+    cpu_time_list = pickle.load(f)
+    cpu_time_list = np.log10(cpu_time_list)
+    f.close
+    
+    f = open("gpu5_time.pkl",'rb')
+    gpu5_time_list = pickle.load(f)
+    gpu5_time_list = np.log10(gpu5_time_list)
+    f.close
+    
+    f = open("gpu10000_time.pkl",'rb')
+    gpu10000_time_list = pickle.load(f)
+    gpu10000_time_list = np.log10(gpu10000_time_list)
+    f.close
+    
+    lengths = np.log10(10**np.arange(1,7))
+    plt.plot(lengths, cpu_time_list, label="cpu_time")
+    plt.plot(lengths, gpu5_time_list, label="gpu_5_time")
+    plt.plot(lengths, gpu10000_time_list, label="gpu_10000_time")
+    plt.legend()
+    plt.xlabel("vector length in 10 log scale (10^x)")
+    plt.ylabel("time takes in 10 log scale (10^y μs)")
+    plt.title("PyCUDA: time it takes for each workload in 10 log scale")
+    plt.savefig("cuda_plot.png")
     
         
 if __name__ == "__main__":
-    question4()
+    question5_plot()

@@ -3,7 +3,11 @@ The code in this file is part of the instructor-provided template for Assignment
 """
 
 import numpy as np
-import relevant.libraries
+import pyopencl as cl
+import pyopencl.array as pycl_array
+import time
+import matplotlib.pyplot as plt
+import pickle
 
 class clModule:
     def __init__(self):
@@ -53,18 +57,75 @@ class clModule:
 
         kernel_main_wrapper = r"""
 
-        __kernel void main_function(float *input_value, float *computed_value, int n)
+        __kernel void main_function(__global float *input_value, __global float *computed_value, int n)
         {
-            TODO: STUDENTS TO WRITE KERNEL CODE MATCHING FUNCTIONALITY (INLCUDING PRINT AND COMPILE TIME CONDITIONS) OF THE CUDA KERNEL.
+            int idx = get_global_id(0);
+            if((idx%2) == 0){
+                // [TODO]: STUDENTS SHOULD WRITE CODE TO USE CUDA MATH FUNCTION TO COMPUTE SINE OF INPUT VALUE
+                computed_value[idx] = sin(input_value[idx]);
+                #ifdef PRINT_ENABLE_DEBUG
+                if(idx<n)
+                {
+                    printf("Hello from index %d \n", idx);
+                }
+                #endif
+            }
+            else{
+                // [TODO]: STUDENTS SHOULD WRITE CODE TO CALL THE DEVICE FUNCTION sine_taylor TO COMPUTE SINE OF INPUT VALUE
+                computed_value[idx] = sine_taylor(input_value[idx]);
+                #ifdef PRINT_ENABLE_DEBUG
+                if(idx<n)
+                {
+                    // [TODO]: STUDENTS SHOULD WRITE CODE TO PRINT THE INDEX OF THE ARRAY BEING COMPUTED
+                    printf("Hello from index %d \n", idx);
+                }
+                #endif
+            }
+
+            #ifdef PRINT_ENABLE_AFTER_COMPUTATION
+            if(idx<n)
+            {
+                // [TODO]: STUDENTS SHOULD WRITE CODE TO PRINT THE INDEX OF THE ARRAY BEING COMPUTED
+                printf("index %d completed\n", idx);
+            }
+            #endif
         }
         """
 
         kernel_device = """
         #define TAYLOR_COEFFS 10000
 
-        float sine_taylor(float in)
+        float sine_taylor(float in_raw)
         {
-            [TODO]: STUDENTS SHOULD WRITE CODE FOR COMPUTING TAYLOR SERIES APPROXIMATION FOR SINE OF INPUT, WITH TAYLOR_COEFFS TERMS.
+                const float pi = 3.1415926f;
+                float in = fmod(in_raw, pi);
+                float result;           // final result
+                float term = in;        // intermediate term for each iter
+                float power = in;       // base case
+                float factorial = 1;    // base case
+                
+                float power_iter = in * in;
+                float factorial_iter;
+                
+                for (unsigned int i = 0; i < TAYLOR_COEFFS; i++) {
+                    if (i == 0) {
+                        result = in;
+                        power = in;
+                        factorial = 1;
+                        continue;
+                    }
+
+                    power = power * power_iter;
+                    factorial_iter = (2*i) * (2*i+1);
+                    factorial = factorial * factorial_iter;
+                    term = power / factorial;
+                    
+                    if (i & 0x01)   // is odd
+                        result -= term;
+                    else            // is even
+                        result += term;
+                }
+                return result;
         }
         """
 
@@ -78,9 +139,10 @@ class clModule:
         # The context (which holds the GPU on which the code should run in) and the kernel code (stored as a string, allowing for metaprogramming if required) are passed onto cl.Program.
         # pyopencl.Program(context,kernelcode).build is similar to sourceModule in Cuda and it returns the kernel function (equivalent of compiled code) that we can pass inputs to.
         # This is stored in self.prg the same way in cuda it is stored in func.
-        self.prg = cl.Program(self.ctx, kernel_code).build()
+        # self.prg = cl.Program(self.ctx, kernel_code).build()
 
-    def deviceSine(self, a, b, length, is_b_a_vector):
+
+    def deviceSine(self, a, length, printing_properties):
         """
         Function to perform vector addition using the cl.array class
         Arguments:
@@ -93,24 +155,36 @@ class clModule:
             time_   :   execution time for pocl function 
         """
         # [TODO: Students should write code for the entire method]
+        start = time.time()
+
         # device memory allocation
+        a_gpu = pycl_array.to_device(self.queue, a)
+        c_gpu = pycl_array.empty_like(a_gpu)
 
         # execute operation.
+        kernel = None
         if(printing_properties == 'No Print'):
             #[TODO: Students to get appropriate compiled kernel]
+            kernel = self.module_no_print.main_function
         elif(printing_properties == 'Print'):
             #[TODO: Students to get appropriate compiled kernel]
+            kernel = self.module_with_print_nosync.main_function
         else:
             #[TODO: Students to get appropriate compiled kernel]
+            kernel = self.module_with_print_with_sync.main_function
 
         # wait for execution to complete.
+        kernel(self.queue, a.shape, None, a_gpu.data, c_gpu.data, np.int32(length))
 
         # Copy output from GPU to CPU [Use .get() method]
+        c = c_gpu.get()
 
         # Record execution time.
+        end = time.time()
 
         # return a tuple of output of addition and time taken to execute the operation.
-        pass
+        return c, (end - start) * 1e6 # in us
+
 
     def CPU_Sine(self, a, length, printing_properties):
         """
@@ -124,51 +198,28 @@ class clModule:
         c = np.sin(a)
         end = time.time()
 
-        return c, end - start
+        return c, (end - start) * 1e6 # in us
+   
 
-
-def main():
-    # List all main methods
-    all_main_methods = ['CPU Sine', 'deviceSine']
-    # List the two operations
-    all_operations = ['No Print', 'Print', 'Sync then Print']
-    # List the size of vectors
-    vector_sizes = 10**np.arange(1,3)
-    # List iteration indexes
-    iteration_indexes = np.arange(1,3)
-    # Select the list of valid operations for profiling
-    valid_operations = all_operations
-    valid_vector_sizes = vector_sizes
-    valid_main_methods = all_main_methods
-
-    # Create an instance of the clModule class
+def test():
     graphicscomputer = clModule()
+    lengths = 10**np.arange(1,3)
+    lengths = [ int(x) for x in lengths ]
+    times = []
+    iter = 50
+    for length in lengths:
+        cpu_time = 0
+        gpu_time = 0
+        a_array_np = 0.001*np.arange(1,length+1).astype(np.float32)
+        for i in range(iter):
+            reference, t0 = graphicscomputer.CPU_Sine(a_array_np, length, "No Print")
+            my_answer, t1 = graphicscomputer.deviceSine(a_array_np, length, "No Print")
+            cpu_time = cpu_time + t0
+            gpu_time = gpu_time + t1
+        cpu_time = cpu_time / iter
+        gpu_time = gpu_time / iter
+        times.append(gpu_time)
 
-    # Nested loop precedence, operations -> vector_size -> iteration -> CPU/GPU method.
-
-    for current_operation in valid_operations:
-        #TODO: STUDENTS CAN USE THIS SPACE TO WRITE NECESSARY TIMING ARRAYS, PERSONAL DEBUGGING PRINT STATEMENTS, ETC        
-        for vector_size in valid_vector_sizes:
-            #TODO: STUDENTS CAN USE THIS SPACE TO WRITE NECESSARY TIMING ARRAYS, PERSONAL DEBUGGING PRINT STATEMENTS, ETC
-
-            #THE FOLLOWING VARIABLE SHOULD NOT BE CHANGED
-            a_array_np = 0.001*np.arange(1,vector_size+1).astype(np.float32) #Generates an Array of Numbers 0.001, 0.002, ... 
-
-            for iteration in iteration_indexes:
-                #TODO: STUDENTS CAN USE THIS SPACE TO WRITE NECESSARY TIMING ARRAYS, PERSONAL DEBUGGING PRINT STATEMENTS, ETC
-
-                for current_method in valid_main_methods:
-                    if(current_method == 'CPU Sine'):
-                        pass
-                        #TODO: STUDENTS TO GET OUTPUT TIME AND COMPUTATION FROM CPU_Sine
-                    else:
-                        pass
-                        if(current_method == 'deviceSine'):
-                            #TODO: STUDENTS TO GET OUTPUT TIME AND COMPUTATION FROM sine_device_mem_gpu
-
-                        #TODO: STUDENTS TO COMPARE RESULTS USING ISCLOSE FUNCTION
-        #TODO: STUDENTS CAN USE THIS SPACE TO WRITE NECESSARY TIMING ARRAYS, PERSONAL DEBUGGING PRINT STATEMENTS, ETC
-        
 
 if __name__ == "__main__":
-    pass
+    test()

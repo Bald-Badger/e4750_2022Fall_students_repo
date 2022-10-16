@@ -118,7 +118,7 @@ class clModule:
         end = time.time()
 
         # return a tuple of output of addition and time taken to execute the operation.
-        return c, (start - end) * 1000000 # in us
+        return c, (end - start) * 1000000 # in us
 
     def bufferAdd(self, a, b, length, is_b_a_vector):
         """
