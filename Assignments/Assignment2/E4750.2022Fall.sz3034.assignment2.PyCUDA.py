@@ -158,8 +158,7 @@ class CudaModule:
         elif(printing_properties == 'Print'):
             prg = self.module_with_print_nosync.get_function("main_function")
         else:
-            prg = self.module_with_print_with_sync.get
-            _function("main_function")
+            prg = self.module_with_print_with_sync.get_function("main_function")
 
         # Get grid and block dim
         blockDim  = (self.threads_per_block_x, self.threads_per_block_y, self.threads_per_block_z)
