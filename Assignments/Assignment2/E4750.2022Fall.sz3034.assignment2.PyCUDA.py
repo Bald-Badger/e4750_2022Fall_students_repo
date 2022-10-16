@@ -204,6 +204,7 @@ class CudaModule:
 
 
 def question12(): # code for task 2-1, 2-2
+    print("running code for question 1 and 2")
     graphicscomputer = CudaModule()
     length = 10
     a_array_np = 0.001*np.arange(1,length+1).astype(np.float32)
@@ -216,6 +217,7 @@ def question12(): # code for task 2-1, 2-2
     
     
 def question3():
+    print("running code for question 3")
     graphicscomputer = CudaModule()
     lengths = 10**np.arange(1,5)
     lengths = [ int(x) for x in lengths ]
@@ -245,6 +247,7 @@ def question3():
         
 
 def question4():
+    print("running code for question 4")
     graphicscomputer = CudaModule()
     lengths = 10**np.arange(1,7)
     lengths = [ int(x) for x in lengths ]
@@ -328,4 +331,7 @@ def question5_plot():
     
         
 if __name__ == "__main__":
-    question5_plot()
+    question12()
+    question3()
+    question4()
+    print("question 5 need to change variable around so cannot run out of the box")

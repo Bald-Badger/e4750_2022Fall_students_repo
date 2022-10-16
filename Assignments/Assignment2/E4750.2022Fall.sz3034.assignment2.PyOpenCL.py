@@ -93,7 +93,7 @@ class clModule:
         """
 
         kernel_device = """
-        #define TAYLOR_COEFFS 10000
+        #define TAYLOR_COEFFS 5
 
         float sine_taylor(float in_raw)
         {
@@ -199,11 +199,80 @@ class clModule:
         end = time.time()
 
         return c, (end - start) * 1e6 # in us
-   
 
-def test():
+
+def question12(): # code for task 2-1, 2-2
+    print("running code for question 1 and 2")
     graphicscomputer = clModule()
-    lengths = 10**np.arange(1,3)
+    length = 10
+    a_array_np = 0.001*np.arange(1,length+1).astype(np.float32)
+    my_answer, t0 = graphicscomputer.deviceSine(a_array_np, length, "Print")
+    reference, t1 = graphicscomputer.CPU_Sine(a_array_np, length, "Print")
+    
+    
+def question3():
+    print("running code for question 3")
+    graphicscomputer = clModule()
+    lengths = 10**np.arange(1,5)
+    lengths = [ int(x) for x in lengths ]
+    iter = 50
+    for length in lengths:
+        cpu_time = 0
+        gpu_time = 0
+        reference = np.array([])
+        my_answer = np.array([])
+        a_array_np = 0.001*np.arange(1,length+1).astype(np.float32)
+        for i in range(iter):
+            reference, t0 = graphicscomputer.CPU_Sine(a_array_np, length, "No Print")
+            my_answer, t1 = graphicscomputer.deviceSine(a_array_np, length, "No Print")
+            cpu_time = cpu_time + t0
+            gpu_time = gpu_time + t1
+        cpu_time = cpu_time / iter
+        gpu_time = gpu_time / iter
+        print("length = {0}".format(length))
+        print("cpu time:    {:.3f}, average {:.3f} us per 100 operation".format(cpu_time, cpu_time/length*100))
+        print("gpu time: {:.3f}, average {:.3f} us per 100 operation".format(gpu_time, gpu_time/length*100))
+        accuracy = np.isclose(my_answer, reference)
+        accurate_cnt = 0
+        for item in accuracy:
+            if item == True:
+                accurate_cnt += 1
+        print("accuracy: {}".format(accurate_cnt / length))
+        
+
+def question4():
+    print("running code for question 4")
+    graphicscomputer = clModule()
+    lengths = 10**np.arange(1,7)
+    lengths = [ int(x) for x in lengths ]
+    iter = 50
+    for length in lengths:
+        cpu_time = 0
+        gpu_time = 0
+        reference = np.array([])
+        my_answer = np.array([])
+        a_array_np = 0.001*np.arange(1,length+1).astype(np.float32)
+        for i in range(iter):
+            reference, t0 = graphicscomputer.CPU_Sine(a_array_np, length, "No Print")
+            my_answer, t1 = graphicscomputer.deviceSine(a_array_np, length, "No Print")
+            cpu_time = cpu_time + t0
+            gpu_time = gpu_time + t1
+        cpu_time = cpu_time / iter
+        gpu_time = gpu_time / iter
+        print("length = {0}".format(length))
+        print("cpu time:    {:.3f}, average {:.3f} us per 100 operation".format(cpu_time, cpu_time/length*100))
+        print("gpu time: {:.3f}, average {:.3f} us per 100 operation".format(gpu_time, gpu_time/length*100))
+        accuracy = np.isclose(my_answer, reference)
+        accurate_cnt = 0
+        for item in accuracy:
+            if item == True:
+                accurate_cnt += 1
+        print("accuracy: {}".format(accurate_cnt / length))
+        
+
+def gen_data():
+    graphicscomputer = clModule()
+    lengths = 10**np.arange(1,7)
     lengths = [ int(x) for x in lengths ]
     times = []
     iter = 50
@@ -219,7 +288,50 @@ def test():
         cpu_time = cpu_time / iter
         gpu_time = gpu_time / iter
         times.append(gpu_time)
+        
+    '''
+    file genration code commented
+    name = 'opencl_gpu_5_time.pkl'
+    f = open(name, 'wb')
+    pickle.dump(times, f)
+    f.close()
+    
+    f = open(name, 'rb')
+    print(pickle.load(f))
+    f.close()
+    '''
+
+
+def plot_data():
+    f = open("opencl_cpu_time.pkl",'rb')
+    cpu_time_list = pickle.load(f)
+    cpu_time_list = np.log10(cpu_time_list)
+    f.close
+    
+    f = open("opencl_gpu_5_time.pkl",'rb')
+    gpu5_time_list = pickle.load(f)
+    gpu5_time_list = np.log10(gpu5_time_list)
+    f.close
+    
+    f = open("opencl_gpu_10000_time.pkl",'rb')
+    gpu10000_time_list = pickle.load(f)
+    gpu10000_time_list = np.log10(gpu10000_time_list)
+    f.close
+    
+    lengths = np.log10(10**np.arange(1,7))
+    plt.plot(lengths, cpu_time_list, label="cpu_time")
+    plt.plot(lengths, gpu5_time_list, label="gpu_5_time")
+    plt.plot(lengths, gpu10000_time_list, label="gpu_10000_time")
+    plt.legend()
+    plt.xlabel("vector length in 10 log scale (10^x)")
+    plt.ylabel("time takes in 10 log scale (10^y μs)")
+    plt.title("PyOpenCL: time it takes for each workload in 10 log scale")
+    plt.savefig("OpenCL_plot.png")  
+ 
 
 
 if __name__ == "__main__":
-    test()
+    question12()
+    question3()
+    question4()
+    print("question 5 need to change variable around so cannot run out of the box")
