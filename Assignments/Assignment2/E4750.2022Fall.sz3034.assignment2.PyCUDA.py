@@ -6,11 +6,11 @@ from cProfile import label
 from cmath import isclose
 import numpy as np
 import pycuda.driver as cuda
-import pycuda.gpuarray as gpuarray
 import pycuda.autoinit
 from pycuda.compiler import SourceModule
 import time
 import matplotlib.pyplot as plt
+import pickle
 
 class CudaModule:
     def __init__(self):
@@ -18,7 +18,7 @@ class CudaModule:
         Attributes for instance of CudaModule
         Includes kernel code and input variables.
         """
-        self.threads_per_block_x = 64 # Students can modify this number.
+        self.threads_per_block_x = 1024 # Students can modify this number.
         self.threads_per_block_y = 1
         self.threads_per_block_z = 1
         self.threads_total = self.threads_per_block_x * self.threads_per_block_y * self.threads_per_block_z
@@ -46,7 +46,7 @@ class CudaModule:
             int idx = threadIdx.x + blockIdx.x * blockDim.x;
             if((idx%2) == 0){
                 // [TODO]: STUDENTS SHOULD WRITE CODE TO USE CUDA MATH FUNCTION TO COMPUTE SINE OF INPUT VALUE
-                computed_value[n] = sinf(input_value[idx]);
+                computed_value[idx] = sinf(input_value[idx]);
                 #ifdef PRINT_ENABLE_DEBUG
                 if(idx<n)
                 {
@@ -56,7 +56,7 @@ class CudaModule:
             }
             else{
                 // [TODO]: STUDENTS SHOULD WRITE CODE TO CALL THE DEVICE FUNCTION sine_taylor TO COMPUTE SINE OF INPUT VALUE
-                computed_value[n] = sine_taylor(input_value[idx]);
+                computed_value[idx] = sine_taylor(input_value[idx]);
                 #ifdef PRINT_ENABLE_DEBUG
                 if(idx<n)
                 {
@@ -77,12 +77,13 @@ class CudaModule:
         """
 
         kernel_device = """
-            #define TAYLOR_COEFFS 10000
+            #define TAYLOR_COEFFS 5
 
-            __device__ float sine_taylor(float in) {
-                return in;
+            __device__ float sine_taylor(float in_raw) {
+                const float pi = 3.1415926f;
+                float in = fmod(in_raw, pi);
                 float result;           // final result
-                float term;             // untermediate term for each iter
+                float term = in;             // intermediate term for each iter
                 float power = in;       // base case
                 float factorial = 1;    // base case
                 
@@ -90,12 +91,17 @@ class CudaModule:
                 float factorial_iter;
                 
                 for (unsigned int i = 0; i < TAYLOR_COEFFS; i++) {
-                    
-                    term = power / factorial;
-                    
+                    if (i == 0) {
+                        result = in;
+                        power = in;
+                        factorial = 1;
+                        continue;
+                    }
+
                     power = power * power_iter;
-                    factorial_iter = (i + 2) * (i + 3);
+                    factorial_iter = (2*i) * (2*i+1);
                     factorial = factorial * factorial_iter;
+                    term = power / factorial;
                     
                     if (i & 0x01)   // is odd
                         result -= term;
@@ -144,11 +150,11 @@ class CudaModule:
         finish          = cuda.Event()
 
         # Device memory allocation for input and output arrays
+        start.record()
         a_gpu           = cuda.mem_alloc(a.size * a.dtype.itemsize)
         o_gpu           = cuda.mem_alloc(o.size * o.dtype.itemsize)
 
         # Copy data from host to device
-        malloc_start.record()
         cuda.memcpy_htod(a_gpu, a)
         cuda.memcpy_htod(o_gpu, o)
 
@@ -166,15 +172,20 @@ class CudaModule:
 
         # Record execution time and call the kernel loaded to the device
         # void main_function(float *input_value, float *computed_value, int n)
+        compute_start.record()
         prg(a_gpu, o_gpu, np.int32(length), block=blockDim, grid=gridDim)
 
         # Wait for the event to complete
+        compute_end.record()
+        compute_end.synchronize()
 
         # Copy result from device to the host
         cuda.memcpy_dtoh(o, o_gpu)
+        finish.record()
+        finish.synchronize()
 
         # return a tuple of output of sine computation and time taken to execute the operation.
-        return (o, None) # in ms
+        return (o, [start.time_till(finish)*1000, compute_start.time_till(compute_end)*1000]) # in us
 
  
     def CPU_Sine(self, a, length, printing_properties):
@@ -189,7 +200,7 @@ class CudaModule:
         c = np.sin(a)
         end = time.time()
 
-        return (c, (end - start) * 1000) # in ms
+        return (c, (end - start) * 1000000) # in us
 
 
 def main():
@@ -237,14 +248,106 @@ def main():
                 correctness = np.isclose(cpu_answers_of_each_element, gpu_answers_of_each_element)
                         
         #TODO: STUDENTS CAN USE THIS SPACE TO WRITE NECESSARY TIMING ARRAYS, PERSONAL DEBUGGING PRINT STATEMENTS, ETC
-        
-if __name__ == "__main__":
+
+
+def question12(): # code for task 2-1, 2-2
     graphicscomputer = CudaModule()
     length = 10
-    a_array_np = 0.1*np.arange(1,length+1).astype(np.float32)
-    my_answer, t0 = graphicscomputer.sine_device_mem_gpu(a_array_np, length, "Print")
-    reference, t1 = graphicscomputer.CPU_Sine(a_array_np, length, "Print")
+    a_array_np = 0.001*np.arange(1,length+1).astype(np.float32)
+    my_answer, t0 = graphicscomputer.sine_device_mem_gpu(a_array_np, length, "No Print")
+    reference, t1 = graphicscomputer.CPU_Sine(a_array_np, length, "No Print")
     print(a_array_np)
     print(my_answer)
     print(reference)
     print(np.isclose(my_answer, reference))
+    
+    
+def question3():
+    graphicscomputer = CudaModule()
+    lengths = 10**np.arange(1,5)
+    lengths = [ int(x) for x in lengths ]
+    iter = 50
+    for length in lengths:
+        cpu_time = 0
+        gpu_time = 0
+        reference = np.array([])
+        my_answer = np.array([])
+        a_array_np = 0.001*np.arange(1,length+1).astype(np.float32)
+        for i in range(iter):
+            reference, t0 = graphicscomputer.CPU_Sine(a_array_np, length, "No Print")
+            my_answer, t1 = graphicscomputer.sine_device_mem_gpu(a_array_np, length, "No Print")
+            cpu_time = cpu_time + t0
+            gpu_time = gpu_time + t1[0]
+        cpu_time = cpu_time / iter
+        gpu_time = gpu_time / iter
+        print("length = {0}".format(length))
+        print("cpu time:    {:.3f}, average {:.3f} us per 100 operation".format(cpu_time, cpu_time/length*100))
+        print("gpu time: {:.3f}, average {:.3f} us per 100 operation".format(gpu_time, gpu_time/length*100))
+        accuracy = np.isclose(my_answer, reference)
+        accurate_cnt = 0
+        for item in accuracy:
+            if item == True:
+                accurate_cnt += 1
+        print("accuracy: {}".format(accurate_cnt / length))
+        
+
+def question4():
+    graphicscomputer = CudaModule()
+    lengths = 10**np.arange(1,7)
+    lengths = [ int(x) for x in lengths ]
+    iter = 50
+    for length in lengths:
+        cpu_time = 0
+        gpu_time = 0
+        reference = np.array([])
+        my_answer = np.array([])
+        a_array_np = 0.001*np.arange(1,length+1).astype(np.float32)
+        for i in range(iter):
+            reference, t0 = graphicscomputer.CPU_Sine(a_array_np, length, "No Print")
+            my_answer, t1 = graphicscomputer.sine_device_mem_gpu(a_array_np, length, "No Print")
+            cpu_time = cpu_time + t0
+            gpu_time = gpu_time + t1[0]
+        cpu_time = cpu_time / iter
+        gpu_time = gpu_time / iter
+        print("length = {0}".format(length))
+        print("cpu time:    {:.3f}, average {:.3f} us per 100 operation".format(cpu_time, cpu_time/length*100))
+        print("gpu time: {:.3f}, average {:.3f} us per 100 operation".format(gpu_time, gpu_time/length*100))
+        accuracy = np.isclose(my_answer, reference)
+        accurate_cnt = 0
+        for item in accuracy:
+            if item == True:
+                accurate_cnt += 1
+        print("accuracy: {}".format(accurate_cnt / length))
+        
+
+def question5():
+    graphicscomputer = CudaModule()
+    lengths = 10**np.arange(1,7)
+    lengths = [ int(x) for x in lengths ]
+    iter = 50
+    for length in lengths:
+        cpu_time = 0
+        gpu_time = 0
+        reference = np.array([])
+        my_answer = np.array([])
+        a_array_np = 0.001*np.arange(1,length+1).astype(np.float32)
+        for i in range(iter):
+            reference, t0 = graphicscomputer.CPU_Sine(a_array_np, length, "No Print")
+            my_answer, t1 = graphicscomputer.sine_device_mem_gpu(a_array_np, length, "No Print")
+            cpu_time = cpu_time + t0
+            gpu_time = gpu_time + t1[0]
+        cpu_time = cpu_time / iter
+        gpu_time = gpu_time / iter
+        print("length = {0}".format(length))
+        print("cpu time:    {:.3f}, average {:.3f} us per 100 operation".format(cpu_time, cpu_time/length*100))
+        print("gpu time: {:.3f}, average {:.3f} us per 100 operation".format(gpu_time, gpu_time/length*100))
+        accuracy = np.isclose(my_answer, reference)
+        accurate_cnt = 0
+        for item in accuracy:
+            if item == True:
+                accurate_cnt += 1
+        print("accuracy: {}".format(accurate_cnt / length))
+    
+        
+if __name__ == "__main__":
+    question4()
