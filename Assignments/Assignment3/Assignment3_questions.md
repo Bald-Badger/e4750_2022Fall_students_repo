@@ -49,7 +49,7 @@ Follow the templates to create methods and the kernel code to perform the follow
 
 (5 CUDA + 5 OpenCL = 10 Points) 4. Write test cases to verify your output with the scipy.signal.convolve2d function from scipy module in python. Name this test function test_conv_pycuda. Write at least one working test case for each function.
 
-(10 CUDA + 10 OpenCL = 20 Points) 5. Record the time taken to execute convolution, including memory transfer operations for the following matrix A dimensions: 16 x 16, 64 x 64, 256 x 256, 1024 x 1024, 4096 x 4096. Run each case multiple times and record the average of the time.
+(10 CUDA + 10 OpenCL = 20 Points) 5. Record the time taken to execute convolution, including memory transfer operations for the following matrix dimensions: 16 x 16, 64 x 64, 256 x 256, 1024 x 1024, 4096 x 4096. Run each case multiple times and record the average of the time.
 
 ### Theory Problems(20 points) 
 (4 points) 1. Compare the recorded times against the serial implementation for all the above cases (the three methods). Which approach is faster in PyCuda? Which approach is faster in PyOpenCL? Why is that particular method better than the other.  
