@@ -197,7 +197,7 @@ class Convolution:
         __kernel void conv_gpu(__global float* a, __global float* b, __global float* c, const unsigned int in_matrix_num_rows, const unsigned int in_matrix_num_cols, const unsigned int in_mask_num_rows, const unsigned int in_mask_num_cols)
         #endif
         #ifdef Constant_mem_optimized
-        __kernel void conv_gpu(__global float* a, __constant float* b, __global float* c, const unsigned int in_matrix_num_rows, const unsigned int in_matrix_num_cols, const unsigned int in_mask_num_rows, const unsigned int in_mask_num_cols)
+        __kernel void conv_gpu(__global float* a, __constant float* mask, __global float* c, const unsigned int in_matrix_num_rows, const unsigned int in_matrix_num_cols, const unsigned int in_mask_num_rows, const unsigned int in_mask_num_cols)
         #endif
         {
             [TODO: Perform required tasks, likely some variable declaration, and index calculation, maybe more]
