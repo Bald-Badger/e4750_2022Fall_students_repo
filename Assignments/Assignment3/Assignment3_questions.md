@@ -27,6 +27,18 @@ C(i,j) = sum (m = 0 to 4) {
 
 ### Programming Part (80 Points)
 
+All the timing, and plots should be taken from running the code in the Cloud Machine. DONOT produce analysis on personal machines.
+
+Your submission should contain 3 files.
+
+1. Project Report    : E4750.2022Fall.(uni).assignment3.report.PDF   : In PDF format containing information presented at [Homework-Reports.md](https://github.com/eecse4750/e4750_2022Fall_students_repo/wiki/Homework-Reports) , the plots, print and profiling results, and the answers for theory questions. I recommend using A3 Page template since it gives more space to organize code, plots and print results better.
+2. PyCUDA solution   : E4750.2022Fall.(uni).assignment3.PyCUDA.py    : In .py format containing the methods and kernel codes, along with comments.
+3. PyOpenCL solution : E4750.2022Fall.(uni).assignment3.PyOpenCL.py  : In .py format containing the methods and kernel codes, along with comments.
+
+Replace (uni) with your uni ID. An example report would be titled E4750.2022Fall.zk2172.assignment3.report.PDF 
+
+### Problem set up
+
 Follow the templates to create methods and the kernel code to perform the following
 
 (10 CUDA + 10 OpenCL = 20 Points) 1. Write a Kernel function to perform the above convolution operation without using shared memory or constant memory and name it `conv_gpu`. Define a python method `conv_gpu_naive` to call this kernel without incorporating the modular compile time defines (calling kernel stored in `self.module_naive_gpu` in the template code)
@@ -37,7 +49,7 @@ Follow the templates to create methods and the kernel code to perform the follow
 
 (5 CUDA + 5 OpenCL = 10 Points) 4. Write test cases to verify your output with the scipy.signal.convolve2d function from scipy module in python. Name this test function test_conv_pycuda. Write at least one working test case for each function.
 
-(10 CUDA + 10 OpenCL = 20 Points) 5. Record the time taken to execute convolution, including memory transfer operations for the following matrix A dimensions: 16 x 16, 64 x 64, 256 x 256, 1024 x 1024, 4096 x 4096. Run each case multiple times and record the average of the time.
+(10 CUDA + 10 OpenCL = 20 Points) 5. Record the time taken to execute convolution, including memory transfer operations for the following matrix dimensions: 16 x 16, 64 x 64, 256 x 256, 1024 x 1024, 4096 x 4096. Run each case multiple times and record the average of the time.
 
 ### Theory Problems(20 points) 
 (4 points) 1. Compare the recorded times against the serial implementation for all the above cases (the three methods). Which approach is faster in PyCuda? Which approach is faster in PyOpenCL? Why is that particular method better than the other.  
@@ -185,7 +197,7 @@ class Convolution:
         __kernel void conv_gpu(__global float* a, __global float* b, __global float* c, const unsigned int in_matrix_num_rows, const unsigned int in_matrix_num_cols, const unsigned int in_mask_num_rows, const unsigned int in_mask_num_cols)
         #endif
         #ifdef Constant_mem_optimized
-        __kernel void conv_gpu(__global float* a, __constant float* b, __global float* c, const unsigned int in_matrix_num_rows, const unsigned int in_matrix_num_cols, const unsigned int in_mask_num_rows, const unsigned int in_mask_num_cols)
+        __kernel void conv_gpu(__global float* a, __constant float* mask, __global float* c, const unsigned int in_matrix_num_rows, const unsigned int in_matrix_num_cols, const unsigned int in_mask_num_rows, const unsigned int in_mask_num_cols)
         #endif
         {
             [TODO: Perform required tasks, likely some variable declaration, and index calculation, maybe more]
