@@ -1,3 +1,4 @@
+from re import A
 import numpy as np
 import pycuda.driver as cuda
 import pycuda.autoinit
@@ -35,16 +36,30 @@ class Convolution:
         
         kernelwrapper = r"""
 		// [TODO: Students to write entire kernel code. An example of using the ifdef and ifndef is shown below. The example can be modified if necessary]
-        #ifndef Constant_mem_optimized
-        __global__ void conv_gpu(float *a, float *b, float *c, int in_matrix_num_rows, int in_matrix_num_cols, int in_mask_num_rows, int in_mask_num_cols) {
-            // assiming full padding
-            // height/width of c = a + b - 1
-            
+        //#ifndef Constant_mem_optimized
+        __global__ void conv_gpu(
+            float *a, float *b, float *c, 
+            int in_matrix_num_rows, int in_matrix_num_cols, 
+            int in_mask_num_rows, int in_mask_num_cols,
+            int pad_row, int pad_col
+        )
+        //#endif
+        //#ifdef Constant_mem_optimized
+        //__global__ void conv_gpu(
+        //    float *a, float *c, 
+        //    int in_matrix_num_rows, int in_matrix_num_cols, 
+        //    int in_mask_num_rows, int in_mask_num_cols,
+        //    int pad_row, int pad_col
+        //)
+        //#endif
+        {
+			// [TODO: Perform required tasks, likely some variable declaration, and index calculation, maybe more]
             // dimension out output matrix
-            int c_width = in_matrix_num_cols + in_mask_num_cols - 1;
-            int c_height = in_matrix_num_rows + in_mask_num_rows - 1;
-            
+            int c_rows = in_matrix_num_rows - in_mask_num_rows + 2 * pad_row + 1;
+            int c_cols = in_matrix_num_cols - in_mask_num_cols + 2 * pad_col + 1;
+
             // thread ID, block ID
+            // I have unlimited grids, each grid have a few blocks, a block have many threads
             int tx = threadIdx.x;
             int ty = threadIdx.y;
             int bx = blockIdx.x;
@@ -52,22 +67,31 @@ class Convolution:
             
             // row number and col number current thread is working on
             int row = by*blockDim.y + ty;
-            int col = bx*blockDim.x + tx
-            
-            
-            
-        }
-        #endif
-        #ifdef Constant_mem_optimized
-        __constant__ int matrix_num_rows;
-        __constant__ int matrix_num_cols; 
-        __constant__ int mask_num_rows;
-        __constant__ int in_mask_num_cols;
-        __global__ void conv_gpu(float *a, float *c, int in_matrix_num_rows, int in_matrix_num_cols, int in_mask_num_rows, int in_mask_num_cols)
-        #endif
-        {
-			// [TODO: Perform required tasks, likely some variable declaration, and index calculation, maybe more]
+            int col = bx*blockDim.x + tx;
 
+            float sum;
+            int mat_col_index, mat_row_index;
+            float mat_value, ker_value;
+            
+            if (row < c_rows && col < c_cols) {
+                sum = 0;
+                for (int i = row; i < row + in_mask_num_rows; i++) {
+                    for (int j = col; j < col + in_mask_num_cols; j++) {
+                        mat_row_index = i - pad_row;
+                        mat_col_index = j - pad_col;
+                        if (mat_col_index < 0 || mat_row_index < 0 || mat_col_index >= in_matrix_num_cols || mat_row_index >= in_matrix_num_rows) {
+                            mat_value = 0;
+                        } else {
+                            int index = mat_row_index * in_matrix_num_cols + mat_col_index;
+                            mat_value = a[index];
+                        }
+                        ker_value = b[(i - row) * in_mask_num_cols + j - col];
+                        sum += (mat_value * ker_value);
+                    }
+                }
+                // printf("working on row: %d, col: %d, value is %f\n", row, col, sum);
+                c[row * c_cols + col] = sum;
+            }
             #ifdef Shared_mem_optimized
 
 			// [TODO: Perform some part of Shared memory optimization routine, maybe more]
@@ -85,10 +109,71 @@ class Convolution:
         # If you wish, you can also include additional compiled kernels and compile-time defines that 
         # you may use for debugging without modifying the above three compiled kernel.
 
-    def conv_gpu_naive(self, inputmatrix, inputmask, input_matrix_numrows, input_matrix_numcolumns, input_mask_numrows, input_mask_numcolumns):
+    def conv_gpu_naive(self, inputmatrix, inputmask, input_matrix_numrows, input_matrix_numcolumns, input_mask_numrows, input_mask_numcolumns, pad_row, pad_col):
 		# Write methods to call self.module_naive_gpu for computing convolution and return the results and time taken. 
         # The above input variable names like inputmask, input_matrix_numrows, etc can be changed as per student requirements.
-        pass
+        start = cuda.Event()
+        finish = cuda.Event()
+
+        a = inputmatrix.astype(np.float32)
+        b = inputmask.astype(np.float32)
+        inputmatrix_shape = inputmatrix.shape
+        inputmask_shape = inputmask.shape
+        
+        assert inputmatrix_shape[0] == input_matrix_numrows
+        assert inputmatrix_shape[1] == input_matrix_numcolumns
+        assert inputmask_shape[0] == input_mask_numrows
+        assert inputmask_shape[1] == input_mask_numcolumns
+
+        c_rows = input_matrix_numrows - input_mask_numrows + 2 * pad_row + 1
+        c_cols = input_matrix_numcolumns - input_mask_numcolumns + 2 * pad_col + 1
+
+        c = np.zeros((c_rows, c_cols), dtype=np.float32)
+
+        a_gpu = cuda.mem_alloc(a.shape[0] * a.shape[1] * a.dtype.itemsize)
+        b_gpu = cuda.mem_alloc(b.shape[0] * b.shape[1] * b.dtype.itemsize)
+        c_gpu = cuda.mem_alloc(c.shape[0] * c.shape[1] * c.dtype.itemsize)
+        
+        cuda.memcpy_htod(a_gpu, a)
+        cuda.memcpy_htod(b_gpu, b)
+        
+        func = self.module_naive_gpu.get_function("conv_gpu")
+        blockDim  = (
+            self.threads_per_block_x, 
+            self.threads_per_block_y, 
+            self.threads_per_block_z
+        )
+        gridDim   = (
+            c.shape[0] // self.threads_per_block_x + 1, 
+            c.shape[1] // self.threads_per_block_y + 1, 
+            1
+        )
+        
+        print("matrix shape: {}".format(a.shape))
+        print("kernel shape: {}".format(b.shape))
+        print("expect result shape: {}".format(c.shape))
+        print("blok dim: {}".format(blockDim))
+        print("grid dim: {}".format(gridDim))
+        # void conv_gpu(float *a, float *b, float *c, int in_matrix_num_rows, int in_matrix_num_cols, int in_mask_num_rows, int in_mask_num_cols)
+        func(   
+                a_gpu, 
+                b_gpu, 
+                c_gpu, 
+                np.int32(input_matrix_numrows),
+                np.int32(input_matrix_numcolumns),
+                np.int32(input_mask_numrows),
+                np.int32(input_mask_numcolumns),
+                np.int32(pad_row),
+                np.int32(pad_col),
+                block = blockDim, 
+                grid  = gridDim
+            )
+
+        finish.record()
+        finish.synchronize()
+        
+        cuda.memcpy_dtoh(c, c_gpu)
+        return c
 
 
     def conv_gpu_shared_mem(self, inputmatrix, inputmask, input_matrix_numrows, input_matrix_numcolumns, input_mask_numrows, input_mask_numcolumns):
@@ -115,10 +200,11 @@ def main():
             [1, 2, 3, 4, 5 ],
             [6, 7, 8, 9, 10],
             [11,12,13,14,15],
-            [16,17,18,19,20]
+            [16,17,18,19,20],
+            [21,22,23,24,25]
         ]
     , dtype=np.float32)
-    k = np.array(
+    b = np.array(
         [
             [1, 0, 0],
             [0, 0, 0],
@@ -126,9 +212,37 @@ def main():
         ]
     , dtype=np.float32)
     
+    c = np.array(
+        [
+            [1, 2, 3],
+            [4, 5, 6],
+            [7, 8, 9]
+        ]
+        , dtype=np.float32
+    )
+    
+    d = np.array(
+        [
+            [1, 0],
+            [0, 1]
+        ]
+        , dtype=np.float32
+    )
+    
+    example_array = np.array( # shape is (2, 3)
+        [
+            [1, 0, 0],
+            [0, 0, 0]
+        ]
+    , dtype=np.float32)
+    
     computer = Convolution()
-    reference = computer.test_conv_pycuda(a, k)
+    reference = computer.test_conv_pycuda(c, d)
     print(reference)
+    answer = computer.conv_gpu_naive(c, d, 3, 3, 2, 2, 1, 1)
+    print(answer)
+    
+    
 
 
 if __name__ == "__main__":
