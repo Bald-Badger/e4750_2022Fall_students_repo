@@ -12,8 +12,8 @@ class Convolution:
 		# Use this space to define the thread dimensions if required, or it can be incorporated into main function
 		# You can also define a lambda function to compute grid dimensions if required.
         self.getSourceModule()
-        self.threads_per_block_x = 32
-        self.threads_per_block_y = 32
+        self.threads_per_block_x = 2
+        self.threads_per_block_y = 2
         self.threads_per_block_z = 1
         self.threads_total = self.threads_per_block_x * self.threads_per_block_y * self.threads_per_block_z
 
@@ -40,17 +40,17 @@ class Convolution:
         // use all the constant memory available, supports up to 128*128 kernel
         __constant__ float b[16384];
         __global__ void conv_gpu(
-            float *a, float *c, 
+            float *a,               float *c, 
             int in_matrix_num_rows, int in_matrix_num_cols, 
-            int in_mask_num_rows, int in_mask_num_cols,
-            int pad_row, int pad_col
+            int in_mask_num_rows,   int in_mask_num_cols,
+            int pad_row,            int pad_col
         )
         #else
         __global__ void conv_gpu(
-            float *a, float *b, float *c, 
+            float *a,               float *b,               float *c, 
             int in_matrix_num_rows, int in_matrix_num_cols, 
-            int in_mask_num_rows, int in_mask_num_cols,
-            int pad_row, int pad_col
+            int in_mask_num_rows,   int in_mask_num_cols,
+            int pad_row,            int pad_col
         )
         #endif
         {
@@ -60,7 +60,7 @@ class Convolution:
             int c_cols = in_matrix_num_cols - in_mask_num_cols + 2 * pad_col + 1;
 
             // thread ID, block ID
-            // I have unlimited grids, each grid have a few blocks, a block have many threads
+            // I have many grids, each grid have many blocks, a block have many threads
             int tx = threadIdx.x;
             int ty = threadIdx.y;
             int bx = blockIdx.x;
@@ -73,14 +73,25 @@ class Convolution:
             float sum;
             int mat_col_index, mat_row_index;
             float mat_value, ker_value;
-
+            __syncthreads();
             #ifdef Shared_mem_optimized
 
 			// [TODO: Perform some part of Shared memory optimization routine, maybe more]
             __shared__ float a_shared[4096];
-            a_shared[row * in_matrix_num_cols + col] = a[row * in_matrix_num_cols + col];
+            int blockId = blockIdx.x + blockIdx.y * gridDim.x;
+            int threadId = blockId * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;
+            if (threadId < in_matrix_num_rows * in_matrix_num_cols) {
+                a_shared[threadId] = a[threadId];
+                printf("hello from %d, copied %f\n", threadId, a_shared[threadId]);
+            }
             __syncthreads();
-
+            
+            if (threadId == 5) {
+                for (int i = 0; i < 9; i++) {
+                    printf("index %d is %f\n", i, a_shared[i]);
+                }
+            }
+            __syncthreads();
             #endif
 
 			// [TODO: Perform required tasks, mostly relating to the computation part. More #ifdef and #ifndef can be added as necessary]
@@ -121,7 +132,7 @@ class Convolution:
 
     # warpper function for all 3 modes
     def conv_gpu(self,
-                 inputmatrix,            inputmask, 
+                 inputmatrix,           inputmask, 
                  input_matrix_numrows,  input_matrix_numcolumns, 
                  input_mask_numrows,    input_mask_numcolumns, 
                  pad_row=None,          pad_col=None, 
@@ -167,14 +178,13 @@ class Convolution:
         c_gpu = cuda.mem_alloc(c.shape[0] * c.shape[1] * c.dtype.itemsize)
         
         if mode == 'conv_gpu_shared_and_constant_mem':
-            constant_ptr = self.module_const_mem_optimized.get_global("b")[0]
-            cuda.memcpy_htod(constant_ptr, b)
+            b_gpu = self.module_const_mem_optimized.get_global("b")[0]
         else:
             b_gpu = cuda.mem_alloc(b.shape[0] * b.shape[1] * b.dtype.itemsize)
-            cuda.memcpy_htod(b_gpu, b)
         
         cuda.memcpy_htod(a_gpu, a)
-        
+        cuda.memcpy_htod(b_gpu, b)
+
         blockDim  = (
             self.threads_per_block_x, 
             self.threads_per_block_y, 
@@ -280,17 +290,6 @@ class Convolution:
         return signal.convolve2d(inputmatrix, inputmask)
 
 
-def main():
-    pass
-
-
-if __name__ == "__main__":
-    # Main code
-    # Write methods to perform the computations, get the timings for all the tasks mentioned in programming sections
-    # and also comparing results and mentioning if there is a sum mismatch. Students can experiment with numpy.math.isclose function.
-    main()
-
-
 def simple_test():
     a = np.array(
         [
@@ -336,5 +335,18 @@ def simple_test():
     computer = Convolution()
     reference = computer.test_conv_pycuda(c, d)
     print(reference)
-    (answer, t) = computer.conv_gpu_shared_and_constant_mem(c, d, 3, 3, 2, 2)
+    (answer, t) = computer.conv_gpu_shared_mem(c, d, 3, 3, 2, 2)
     print(answer)
+
+
+def main():
+    simple_test()
+    pass
+
+
+if __name__ == "__main__":
+    # Main code
+    # Write methods to perform the computations, get the timings for all the tasks mentioned in programming sections
+    # and also comparing results and mentioning if there is a sum mismatch. Students can experiment with numpy.math.isclose function.
+    main()
+
