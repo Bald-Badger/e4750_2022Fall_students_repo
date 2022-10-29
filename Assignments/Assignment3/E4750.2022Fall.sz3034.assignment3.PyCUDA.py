@@ -115,12 +115,7 @@ class Convolution:
                             ker_value = b[(i - row) * in_mask_num_cols + j - col];
                         #endif
                         sum += (mat_value * ker_value);
-                        if (row == 2 && col == 2)
-                            printf("adding partial sum: %f x %f\n", mat_value, ker_value);
                     }
-                }
-                if (row == 2 && col == 2) {
-                    printf("working on row: %d, col: %d, value is %f\n", row, col, sum);
                 }
                 c[row * c_cols + col] = sum;
             }
@@ -340,9 +335,11 @@ def simple_test():
     computer = Convolution()
     reference = computer.test_conv_pycuda(c, d)
     print(reference)
-    (answer, t) = computer.conv_gpu_shared_and_constant_mem(c, d, 3, 3, 2, 2)
+    (answer, t0) = computer.conv_gpu_naive(c, d, 3, 3, 2, 2)
     print(answer)
-
+    (answer, t1) = computer.conv_gpu_shared_mem(c, d, 3, 3, 2, 2)
+    (answer, t2) = computer.conv_gpu_shared_and_constant_mem(c, d, 3, 3, 2, 2)
+    print ([t0, t1, t2])
 
 def main():
     simple_test()
