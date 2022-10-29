@@ -75,23 +75,21 @@ class Convolution:
             float mat_value, ker_value;
             __syncthreads();
             #ifdef Shared_mem_optimized
+                #ifndef Constant_mem_optimized
+                    // [TODO: Perform some part of Shared memory optimization routine, maybe more]
+                    __shared__ float b_shared[256];
+                    int index = (tx + 1) * (ty + 1) - 1;
+                    if (index < (in_mask_num_rows * in_mask_num_rows)) {
+                        b_shared[index] = b[index];
+                        // printf("placed index %d with %f, tx:%d, ty:%d\n", index, b_shared[index], tx, ty);
+                    }
+                    __syncthreads();
 
-			// [TODO: Perform some part of Shared memory optimization routine, maybe more]
-            __shared__ float a_shared[4096];
-            int blockId = blockIdx.x + blockIdx.y * gridDim.x;
-            int threadId = blockId * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;
-            if (threadId < in_matrix_num_rows * in_matrix_num_cols) {
-                a_shared[threadId] = a[threadId];
-                printf("hello from %d, copied %f\n", threadId, a_shared[threadId]);
-            }
-            __syncthreads();
-            
-            if (threadId == 5) {
-                for (int i = 0; i < 9; i++) {
-                    printf("index %d is %f\n", i, a_shared[i]);
-                }
-            }
-            __syncthreads();
+                    /*
+                        int blockId = blockIdx.x + blockIdx.y * gridDim.x;
+                        int threadId = blockId * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;
+                    */
+                #endif
             #endif
 
 			// [TODO: Perform required tasks, mostly relating to the computation part. More #ifdef and #ifndef can be added as necessary]
@@ -105,18 +103,25 @@ class Convolution:
                             mat_value = 0;
                         } else {
                             int index = mat_row_index * in_matrix_num_cols + mat_col_index;
-                            #ifdef Shared_mem_optimized
-                            mat_value = a_shared[index];
-                            #else
                             mat_value = a[index];
-                            #endif
-                            
                         }
-                        ker_value = b[(i - row) * in_mask_num_cols + j - col];
+                        #ifdef Shared_mem_optimized
+                            #ifdef Constant_mem_optimized
+                                ker_value = b[(i - row) * in_mask_num_cols + j - col];
+                            #else
+                                ker_value = b_shared[(i - row) * in_mask_num_cols + j - col];
+                            #endif
+                        #else
+                            ker_value = b[(i - row) * in_mask_num_cols + j - col];
+                        #endif
                         sum += (mat_value * ker_value);
+                        if (row == 2 && col == 2)
+                            printf("adding partial sum: %f x %f\n", mat_value, ker_value);
                     }
                 }
-                // printf("working on row: %d, col: %d, value is %f\n", row, col, sum);
+                if (row == 2 && col == 2) {
+                    printf("working on row: %d, col: %d, value is %f\n", row, col, sum);
+                }
                 c[row * c_cols + col] = sum;
             }
         }
@@ -331,11 +336,11 @@ def simple_test():
             [0, 0, 0]
         ]
     , dtype=np.float32)
-    
+    print(c)
     computer = Convolution()
     reference = computer.test_conv_pycuda(c, d)
     print(reference)
-    (answer, t) = computer.conv_gpu_shared_mem(c, d, 3, 3, 2, 2)
+    (answer, t) = computer.conv_gpu_shared_and_constant_mem(c, d, 3, 3, 2, 2)
     print(answer)
 
 
