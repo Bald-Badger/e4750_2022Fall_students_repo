@@ -1,3 +1,8 @@
+# reference apart from links listed in course wiki:
+# https://stackoverflow.com/questions/40247760/scipy-convolve2d-outputs-wrong-values
+# https://cs.calvin.edu/courses/cs/374/CUDA/CUDA-Thread-Indexing-Cheatsheet.pdf
+
+
 import numpy as np
 import pycuda.driver as cuda
 import pycuda.autoinit
@@ -7,15 +12,17 @@ import time
 import matplotlib.pyplot as plt
 from scipy import signal
 
+
 class Convolution:
     def __init__(self):
 		# Use this space to define the thread dimensions if required, or it can be incorporated into main function
 		# You can also define a lambda function to compute grid dimensions if required.
         self.getSourceModule()
-        self.threads_per_block_x = 2
-        self.threads_per_block_y = 2
+        self.threads_per_block_x = 32 # max kernel size is 1024 = 32 *
+        self.threads_per_block_y = 32
         self.threads_per_block_z = 1
         self.threads_total = self.threads_per_block_x * self.threads_per_block_y * self.threads_per_block_z
+
 
     def getSourceModule(self):
         kernel_enable_shared_mem_optimizations = """
@@ -99,7 +106,12 @@ class Convolution:
                     for (int j = col; j < col + in_mask_num_cols; j++) {
                         mat_row_index = i - pad_row;
                         mat_col_index = j - pad_col;
-                        if (mat_col_index < 0 || mat_row_index < 0 || mat_col_index >= in_matrix_num_cols || mat_row_index >= in_matrix_num_rows) {
+                        if (
+                            mat_col_index < 0 || 
+                            mat_row_index < 0 || 
+                            mat_col_index >= in_matrix_num_cols || 
+                            mat_row_index >= in_matrix_num_rows
+                        ) {
                             mat_value = 0;
                         } else {
                             int index = mat_row_index * in_matrix_num_cols + mat_col_index;
@@ -115,6 +127,9 @@ class Convolution:
                             ker_value = b[(i - row) * in_mask_num_cols + j - col];
                         #endif
                         sum += (mat_value * ker_value);
+                        if (row == 0 && col == 1) {
+                            // printf("partial: %f x %f\n", mat_value, ker_value);
+                        }
                     }
                 }
                 c[row * c_cols + col] = sum;
@@ -131,12 +146,12 @@ class Convolution:
 
 
     # warpper function for all 3 modes
-    def conv_gpu(self,
+    def __conv_gpu(self,
                  inputmatrix,           inputmask, 
                  input_matrix_numrows,  input_matrix_numcolumns, 
                  input_mask_numrows,    input_mask_numcolumns, 
                  pad_row=None,          pad_col=None, 
-                 mode=None
+                 mode=None,             reverse_kernel=True
                 ):
 
         mode_list = [
@@ -144,6 +159,11 @@ class Convolution:
             'conv_gpu_shared_mem',
             'conv_gpu_shared_and_constant_mem'
         ]
+        
+        if reverse_kernel:
+            inputmask = inputmask[::-1, ::-1]
+            input_mask_numrows = inputmask.shape[0]
+            input_mask_numcols = inputmask.shape[0]
 
         if pad_row is None:
             pad_row = input_mask_numrows - 1
@@ -251,7 +271,7 @@ class Convolution:
     def conv_gpu_naive(self, inputmatrix, inputmask, input_matrix_numrows, input_matrix_numcolumns, input_mask_numrows, input_mask_numcolumns, pad_row=None, pad_col=None):
 		# Write methods to call self.module_naive_gpu for computing convolution and return the results and time taken. 
         # The above input variable names like inputmask, input_matrix_numrows, etc can be changed as per student requirements.
-        return self.conv_gpu(
+        return self.__conv_gpu(
             inputmatrix,            inputmask, 
             input_matrix_numrows,   input_matrix_numcolumns, 
             input_mask_numrows,     input_mask_numcolumns, 
@@ -263,7 +283,7 @@ class Convolution:
     def conv_gpu_shared_mem(self, inputmatrix, inputmask, input_matrix_numrows, input_matrix_numcolumns, input_mask_numrows, input_mask_numcolumns, pad_row=None, pad_col=None):
         # Write methods to call self.module_shared_mem_optimized for computing convolution and return the results and time taken. 
         # The above input variable names like inputmask, input_matrix_numrows, etc can be changed as per student requirements.
-        return self.conv_gpu(
+        return self.__conv_gpu(
             inputmatrix,            inputmask, 
             input_matrix_numrows,   input_matrix_numcolumns, 
             input_mask_numrows,     input_mask_numcolumns, 
@@ -275,7 +295,7 @@ class Convolution:
     def conv_gpu_shared_and_constant_mem(self, inputmatrix, inputmask, input_matrix_numrows, input_matrix_numcolumns, input_mask_numrows, input_mask_numcolumns, pad_row=None, pad_col=None):
         # Write methods to call self.module_const_mem_optimized for computing convolution and return the results and time taken. 
         # The above input variable names like inputmask, input_matrix_numrows, etc can be changed as per student requirements.
-        return self.conv_gpu(
+        return self.__conv_gpu(
             inputmatrix,            inputmask, 
             input_matrix_numrows,   input_matrix_numcolumns, 
             input_mask_numrows,     input_mask_numcolumns, 
@@ -287,63 +307,63 @@ class Convolution:
     def test_conv_pycuda(self, inputmatrix, inputmask):
         # Write methods to perform convolution on the same dataset using scipy's convolution methods running on CPU and return the results and time. 
         # Students are free to experiment with different variable names in place of inputmatrix and inputmask.
-        return signal.convolve2d(inputmatrix, inputmask)
+        start = time.time()
+        result = signal.convolve2d(inputmatrix, inputmask)
+        end = time.time()
+        return (result, (end - start) * 1000000) #n us
 
 
-def simple_test():
-    a = np.array(
-        [
-            [1, 2, 3, 4, 5 ],
-            [6, 7, 8, 9, 10],
-            [11,12,13,14,15],
-            [16,17,18,19,20],
-            [21,22,23,24,25]
-        ]
-    , dtype=np.float32)
-    b = np.array(
-        [
-            [1, 0, 0],
-            [0, 0, 0],
-            [0, 0, 1]
-        ]
-    , dtype=np.float32)
-    
-    c = np.array(
-        [
-            [1, 2, 3],
-            [4, 5, 6],
-            [7, 8, 9]
-        ]
-        , dtype=np.float32
-    )
-    
-    d = np.array(
-        [
-            [1, 0],
-            [0, 1]
-        ]
-        , dtype=np.float32
-    )
-    
-    example_array = np.array( # shape is (2, 3)
-        [
-            [1, 0, 0],
-            [0, 0, 0]
-        ]
-    , dtype=np.float32)
-    print(c)
+def test_conv_pycuda(mrows = 4096, mcols = 4096, krows = 5, kcols = 5):
+    M = np.random.rand(mrows, mcols).astype(np.float32)
+    K = np.random.rand(krows, kcols).astype(np.float32)
     computer = Convolution()
-    reference = computer.test_conv_pycuda(c, d)
-    print(reference)
-    (answer, t0) = computer.conv_gpu_naive(c, d, 3, 3, 2, 2)
-    print(answer)
-    (answer, t1) = computer.conv_gpu_shared_mem(c, d, 3, 3, 2, 2)
-    (answer, t2) = computer.conv_gpu_shared_and_constant_mem(c, d, 3, 3, 2, 2)
-    print ([t0, t1, t2])
+    cr, tr = computer.test_conv_pycuda(M, K)
+    c0, t0 = computer.conv_gpu_naive(M, K, mrows, mcols, krows, kcols)
+    c1, t1 = computer.conv_gpu_shared_mem(M, K, mrows, mcols, krows, kcols)
+    c2, t2 = computer.conv_gpu_shared_and_constant_mem(M, K, mrows, mcols, krows, kcols)
+    
+    r0 = np.isclose(c0, cr).flatten()
+    r1 = np.isclose(c1, cr).flatten()
+    r2 = np.isclose(c2, cr).flatten()
+    
+    accuracy = [0, 0, 0]
+    for r in r0:
+        if r == True:
+            accuracy[0] += 1
+    for r in r1:
+        if r == True:
+            accuracy[1] += 1
+    for r in r2:
+        if r == True:
+            accuracy[2] += 1
+    accuracy[0] /= len(r0)
+    accuracy[1] /= len(r1)
+    accuracy[2] /= len(r2)
+    accuracy[0] *= 100
+    accuracy[1] *= 100
+    accuracy[2] *= 100
+    
+    print(
+        "testing conv2d with matrix size of {mrows} x {mcols}, kernel size of {krows} x {kcols}".format(
+            mrows=mrows, mcols=mcols, krows=krows, kcols=kcols
+        )
+    )
+    
+    print(
+        "the accuracy of the 3 kernel compared with scipy method are: {:.2f}%, {:.2f}%, {:.2f}%".format(
+            accuracy[0], accuracy[1], accuracy[2]
+        )
+    )
+    
+    print(
+        "the time it takes for scipy and each kernel to finish in μs are: {:.2f}, {:.2f}, {:.2f}, {:.2f}".format(
+            tr, t0, t1, t2
+        )
+    )
+    
 
 def main():
-    simple_test()
-    pass
+    test_conv_pycuda()
 
 
 if __name__ == "__main__":
@@ -351,4 +371,3 @@ if __name__ == "__main__":
     # Write methods to perform the computations, get the timings for all the tasks mentioned in programming sections
     # and also comparing results and mentioning if there is a sum mismatch. Students can experiment with numpy.math.isclose function.
     main()
-
