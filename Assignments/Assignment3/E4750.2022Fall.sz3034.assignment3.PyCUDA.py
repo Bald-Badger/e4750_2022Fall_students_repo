@@ -11,6 +11,7 @@ from pycuda.compiler import SourceModule
 import time
 import matplotlib.pyplot as plt
 from scipy import signal
+import pickle
 
 
 class Convolution:
@@ -151,7 +152,8 @@ class Convolution:
                  input_matrix_numrows,  input_matrix_numcolumns, 
                  input_mask_numrows,    input_mask_numcolumns, 
                  pad_row=None,          pad_col=None, 
-                 mode=None,             reverse_kernel=True
+                 mode=None,             reverse_kernel=True,
+                 debug=False
                 ):
 
         mode_list = [
@@ -217,11 +219,12 @@ class Convolution:
             1
         )
         
-        print("matrix shape: {}".format(a.shape))
-        print("kernel shape: {}".format(b.shape))
-        print("expect result shape: {}".format(c.shape))
-        print("blok dim: {}".format(blockDim))
-        print("grid dim: {}".format(gridDim))
+        if debug:
+            print("matrix shape: {}".format(a.shape))
+            print("kernel shape: {}".format(b.shape))
+            print("expect result shape: {}".format(c.shape))
+            print("blok dim: {}".format(blockDim))
+            print("grid dim: {}".format(gridDim))
         
         if mode == mode_list[0]:    # conv_gpu_naive
             func = self.module_naive_gpu.get_function("conv_gpu")
@@ -360,10 +363,101 @@ def test_conv_pycuda(mrows = 4096, mcols = 4096, krows = 5, kcols = 5):
             tr, t0, t1, t2
         )
     )
+
+
+def record():
+    matrix_size_list = [16, 64, 256, 1024, 4096]
+    kernel_size = 5
+    iters = 10 # change to high value in final run
+    
+    refer_times = np.array([])
+    naive_times = np.array([])
+    share_times = np.array([])
+    const_times = np.array([])
+    
+    computer = Convolution()
+    
+    for msize in matrix_size_list:
+        refer_time = 0
+        naive_time = 0
+        share_time = 0
+        const_time = 0
+        for i in range(iters):
+            M = np.random.rand(msize, msize).astype(np.float32)
+            K = np.random.rand(kernel_size, kernel_size).astype(np.float32)
+            
+            cr, tr = computer.test_conv_pycuda                  (M, K)
+            c0, t0 = computer.conv_gpu_naive                    (M, K, msize, msize, kernel_size, kernel_size)
+            c1, t1 = computer.conv_gpu_shared_mem               (M, K, msize, msize, kernel_size, kernel_size)
+            c2, t2 = computer.conv_gpu_shared_and_constant_mem  (M, K, msize, msize, kernel_size, kernel_size)
+            
+            refer_time += tr
+            naive_time += t0
+            share_time += t1
+            const_time += t2
+            
+            refer_time /= iters
+            naive_time /= iters
+            share_time /= iters
+            const_time /= iters
+            
+        refer_times = np.append(refer_times, refer_time)
+        naive_times = np.append(naive_times, naive_time)
+        share_times = np.append(share_times, share_time)
+        const_times = np.append(const_times, const_time)
+        filename = 'cuda_data.pkl'
+        f = open (filename,'wb')
+        pickle.dump([
+            matrix_size_list, 
+            refer_times, 
+            naive_times, 
+            share_times, 
+            const_times
+        ], f)
+        f.close()
+
+
+def plot():
+    f = open('cuda_data.pkl','rb')
+    time_list   = pickle.load(f)
+    
+    # log2 normalization
+    time_list = np.log2(time_list)
+    
+    size_list   = time_list[0]
+    refer_times = time_list[1]
+    naive_times = time_list[2]
+    share_times = time_list[3]
+    const_times = time_list[4]
+    
+    
+    
+    plt.figure(0)
+    plt.plot(size_list, refer_times, label="cpu")
+    plt.plot(size_list, naive_times, label="naive")
+    plt.plot(size_list, share_times, label="shared")
+    plt.plot(size_list, const_times, label="constant")
+    plt.legend()
+    plt.xlabel("matrix width in 2 log scale (2^x)")
+    plt.ylabel("time takes in 2 log scale (2^y μs)")
+    plt.title("PyCUDA: time it takes for each workload in 2 log scale")
+    plt.savefig("cuda_plot_with_cpu.png")
+    
+    plt.figure(1)
+    plt.plot(size_list, naive_times, label="naive")
+    plt.plot(size_list, share_times, label="shared")
+    plt.plot(size_list, const_times, label="constant")
+    plt.legend()
+    plt.xlabel("matrix width in 2 log scale (2^x)")
+    plt.ylabel("time takes in 2 log scale (2^y μs)")
+    plt.title("PyCUDA: time it takes for each workload in 2 log scale without CPU")
+    plt.savefig("cuda_plot_without_cpu.png")
     
 
 def main():
     test_conv_pycuda()
+    record()
+    plot()
 
 
 if __name__ == "__main__":
