@@ -1,4 +1,11 @@
-import relevant.libraries
+import numpy as np
+import pyopencl as cl
+import pyopencl.array as pycl_array
+import time
+import matplotlib.pyplot as plt
+import pickle
+from scipy import signal
+
 
 class Convolution:
     def __init__(self):
@@ -34,53 +41,144 @@ class Convolution:
         #define Constant_mem_optimized
         """
 
-		# STUDENTS SHOULD NOT MODIFY kernel_enable_shared_mem_optimizations, kernel_enable_constant_mem_optimizations, self.module_naive_gpu, self.module_shared_mem_optimized and self.module_const_mem_optimized
+		# STUDENTS SHOULD NOT MODIFY kernel_enable_shared_mem_optimizations, 
+        # kernel_enable_constant_mem_optimizations, self.module_naive_gpu, 
+        # self.module_shared_mem_optimized and self.module_const_mem_optimized
 
-		# STUDENTS ARE FREE TO MODIFY ANY PART OF THE CODE INSIDE kernelwrapper as long as the tasks mentioned in the Programming Part are satisfied. The examples shown below are just for reference.
+		# STUDENTS ARE FREE TO MODIFY ANY PART OF THE CODE INSIDE kernelwrapper
+        # as long as the tasks mentioned in the Programming Part are satisfied. 
+        # The examples shown below are just for reference.
 
         kernel_code = r"""
+            // [TODO: Students to write entire kernel code. An example of using the ifdef and ifndef is shown below. The example can be modified if necessary]
 
-		[TODO: Students to write entire kernel code. An example of using the ifdef and ifndef is shown below. The example can be modified if necessary]
-
-        #ifndef Constant_mem_optimized
-        __kernel void conv_gpu(__global float* a, __global float* b, __global float* c, const unsigned int in_matrix_num_rows, const unsigned int in_matrix_num_cols, const unsigned int in_mask_num_rows, const unsigned int in_mask_num_cols)
-        #endif
-        #ifdef Constant_mem_optimized
-        __kernel void conv_gpu(__global float* a, __constant float* mask, __global float* c, const unsigned int in_matrix_num_rows, const unsigned int in_matrix_num_cols, const unsigned int in_mask_num_rows, const unsigned int in_mask_num_cols)
-        #endif
-        {
-            [TODO: Perform required tasks, likely some variable declaration, and index calculation, maybe more]
-
-            #ifdef Shared_mem_optimized
-
-			[TODO: Perform some part of Shared memory optimization routine, maybe more]
-
+            #ifndef Constant_mem_optimized
+            __kernel void conv_gpu (
+                __global float* a, __global float* b, __global float* c, 
+                const unsigned int in_matrix_num_rows, const unsigned int in_matrix_num_cols, 
+                const unsigned int in_mask_num_rows, const unsigned int in_mask_num_cols
+            )
             #endif
+            #ifdef Constant_mem_optimized
+            __kernel void conv_gpu (
+                __global float* a, __constant float* mask, __global float* c, 
+                const unsigned int in_matrix_num_rows, const unsigned int in_matrix_num_cols, 
+                const unsigned int in_mask_num_rows, const unsigned int in_mask_num_cols
+            )
+            #endif
+            {
+                // [TODO: Perform required tasks, likely some variable declaration, and index calculation, maybe more]
 
-			[TODO: Perform required tasks, mostly relating to the computation part. More #ifdef and #ifndef can be added as necessary]
-        }
+                #ifdef Shared_mem_optimized
+
+                // [TODO: Perform some part of Shared memory optimization routine, maybe more]
+
+                #endif
+
+                // [TODO: Perform required tasks, mostly relating to the computation part. More #ifdef and #ifndef can be added as necessary]
+            }
         """
 
         self.module_naive_gpu = cl.Program(self.ctx, kernel_code).build()
         self.module_shared_mem_optimized = cl.Program(self.ctx, kernel_enable_shared_mem_optimizations + kernel_code).build()
         self.module_const_mem_optimized = self.prg = cl.Program(self.ctx, kernel_enable_shared_mem_optimizations + kernel_enable_constant_mem_optimizations + kernel_code).build()
 
-        # If you wish, you can also include additional compiled kernels and compile-time defines that you may use for debugging without modifying the above three compiled kernel.
+        # If you wish, you can also include additional compiled kernels and compile-time defines that 
+        # you may use for debugging without modifying the above three compiled kernel.
 
-    def conv_gpu_naive(self, inputmatrix, inputmask, input_matrix_numrows, input_matrix_numcolumns, input_mask_numrows, input_mask_numcolumns):
-        # Write methods to call self.module_naive_gpu for computing convolution and return the results and time taken. The above input variable names like inputmask, input_matrix_numrows, etc can be changed as per student requirements.
+    def __conv_gpu (
+                    self,
+                    inputmatrix,           inputmask, 
+                    input_matrix_numrows,  input_matrix_numcolumns, 
+                    input_mask_numrows,    input_mask_numcolumns, 
+                    pad_row=None,          pad_col=None, 
+                    mode=None,             reverse_kernel=True,
+                    debug=False
+                ):
+        pass
 
-    def conv_gpu_shared_mem(self, inputmatrix, inputmask, input_matrix_numrows, input_matrix_numcolumns, input_mask_numrows, input_mask_numcolumns):
-        # Write methods to call self.module_shared_mem_optimized for computing convolution and return the results and time taken. The above input variable names like inputmask, input_matrix_numrows, etc can be changed as per student requirements.
-    
-    def conv_gpu_shared_and_constant_mem(self, inputmatrix, inputmask, input_matrix_numrows, input_matrix_numcolumns, input_mask_numrows, input_mask_numcolumns):
-        # Write methods to call self.module_const_mem_optimized for computing convolution and return the results and time taken. The above input variable names like inputmask, input_matrix_numrows, etc can be changed as per student requirements.
+
+    def conv_gpu_naive (
+                        self, 
+                        inputmatrix,            inputmask, 
+                        input_matrix_numrows,   input_matrix_numcolumns, 
+                        input_mask_numrows,     input_mask_numcolumns, 
+                        pad_row=None,           pad_col=None
+                    ):
+		# Write methods to call self.module_naive_gpu for computing convolution and
+        # return the results and time taken. 
+        # The above input variable names like inputmask, input_matrix_numrows, etc 
+        # can be changed as per student requirements.
+        return self.__conv_gpu(
+            inputmatrix,            inputmask, 
+            input_matrix_numrows,   input_matrix_numcolumns, 
+            input_mask_numrows,     input_mask_numcolumns, 
+            pad_row,                pad_col, 
+            "conv_gpu_naive"
+        )
+
+
+    def conv_gpu_shared_mem (
+                                self, 
+                                inputmatrix,            inputmask, 
+                                input_matrix_numrows,   input_matrix_numcolumns, 
+                                input_mask_numrows,     input_mask_numcolumns, 
+                                pad_row=None,           pad_col=None
+                            ):
+        # Write methods to call self.module_shared_mem_optimized for computing convolution 
+        # and return the results and time taken. 
+        # The above input variable names like inputmask, input_matrix_numrows, etc 
+        # can be changed as per student requirements.
+        return self.__conv_gpu(
+            inputmatrix,            inputmask, 
+            input_matrix_numrows,   input_matrix_numcolumns, 
+            input_mask_numrows,     input_mask_numcolumns, 
+            pad_row,                pad_col, 
+            "conv_gpu_shared_mem"
+        )
+
+
+    def conv_gpu_shared_and_constant_mem (
+                                            self, 
+                                            inputmatrix, inputmask, 
+                                            input_matrix_numrows, input_matrix_numcolumns, 
+                                            input_mask_numrows, input_mask_numcolumns, 
+                                            pad_row=None, pad_col=None
+                                        ):
+        # Write methods to call self.module_const_mem_optimized for 
+        # computing convolution and return the results and time taken. 
+        # The above input variable names like inputmask, input_matrix_numrows, etc 
+        # can be changed as per student requirements.
+        return self.__conv_gpu(
+            inputmatrix,            inputmask, 
+            input_matrix_numrows,   input_matrix_numcolumns, 
+            input_mask_numrows,     input_mask_numcolumns, 
+            pad_row,                pad_col, 
+            "conv_gpu_shared_and_constant_mem"
+        )
+
 
     def test_conv_pycuda(self, inputmatrix, inputmask):
-        # Write methods to perform convolution on the same dataset using scipy's convolution methods running on CPU and return the results and time. Students are free to experiment with different variable names in place of inputmatrix and inputmask.
+        # Write methods to perform convolution on the same dataset using 
+        # scipy's convolution methods running on CPU and return the results and time. 
+        # Students are free to experiment with different 
+        # variable names in place of inputmatrix and inputmask.
+        start = time.time()
+        result = signal.convolve2d(inputmatrix, inputmask)
+        end = time.time()
+        return (result, (end - start) * 1000000) #n us
+
+
+def main():
+    computer = Convolution()
+    pass
+
 
 if __name__ == "__main__":
-    # Main code
-    # Write methods to perform the computations, get the timings for all the tasks mentioned in programming sections and also comparing results and mentioning if there is a sum mismatch. Students can experiment with numpy.math.isclose function. 
-
+     # Main code
+    # Write methods to perform the computations, 
+    # get the timings for all the tasks mentioned in programming sections
+    # and also comparing results and mentioning if there is a sum mismatch. 
+    # Students can experiment with numpy.math.isclose function.
+    main()
 
