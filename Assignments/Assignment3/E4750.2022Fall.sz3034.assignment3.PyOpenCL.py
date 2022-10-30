@@ -95,7 +95,55 @@ class Convolution:
                     mode=None,             reverse_kernel=True,
                     debug=False
                 ):
-        pass
+
+        mode_list = [
+            'conv_gpu_naive',
+            'conv_gpu_shared_mem',
+            'conv_gpu_shared_and_constant_mem'
+        ]
+        
+        if reverse_kernel:
+            inputmask = inputmask[::-1, ::-1]
+            input_mask_numrows = inputmask.shape[0]
+            input_mask_numcols = inputmask.shape[0]
+            
+        if pad_row is None:
+            pad_row = input_mask_numrows - 1
+        if pad_col is None:
+            pad_col = input_mask_numcolumns - 1
+            
+        a = inputmatrix.astype(np.float32)
+        b = inputmask.astype(np.float32)
+        inputmatrix_shape = inputmatrix.shape
+        inputmask_shape = inputmask.shape
+        
+        # sanity check
+        assert mode in mode_list
+        
+        assert inputmatrix_shape[0] == input_matrix_numrows
+        assert inputmatrix_shape[1] == input_matrix_numcolumns
+        assert inputmask_shape[0]   == input_mask_numrows
+        assert inputmask_shape[1]   == input_mask_numcolumns
+        
+        c_rows = input_matrix_numrows - input_mask_numrows + 2 * pad_row + 1
+        c_cols = input_matrix_numcolumns - input_mask_numcolumns + 2 * pad_col + 1
+        
+        c = np.zeros((c_rows, c_cols), dtype=np.float32)
+        
+        start = time.time()
+        
+        a_gpu = pycl_array.to_device(self.queue, a)
+        b_gpu = pycl_array.to_device(self.queue, b)
+        c_gpu = pycl_array.zeros(self.queue, shape=(c_rows, c_cols), dtype=np.float32)
+        
+        kernel = self.module_naive_gpu.conv_gpu
+        
+        kernel(
+            self.queue,                     a.shape,                            None, 
+            a_gpu.data,                     b_gpu.data,                         c_gpu.data,
+            np.int32(input_matrix_numrows), np.int32(input_matrix_numcolumns),
+            np.int32(input_mask_numrows),   np.int32(input_mask_numcolumns)
+        )
 
 
     def conv_gpu_naive (
@@ -170,8 +218,34 @@ class Convolution:
 
 
 def main():
+    M = np.array(
+        [
+            [ 0,  1,  2,  3],
+            [ 4,  5,  6,  7],
+            [ 8,  9, 10, 11],
+            [12, 13, 14, 15]
+        ], dtype=np.float32
+    )
+    
+    K = np.array(
+        [
+            [1, 0],
+            [0, 1]
+        ], dtype=np.float32
+    )
+    '''
+self, 
+inputmatrix,            inputmask, 
+input_matrix_numrows,   input_matrix_numcolumns, 
+input_mask_numrows,     input_mask_numcolumns, 
+pad_row=None,           pad_col=None
+    '''
     computer = Convolution()
-    pass
+    computer.conv_gpu_naive(
+        M,          K, 
+        M.shape[0], M.shape[1],
+        K.shape[0], K.shape[1]
+    )
 
 
 if __name__ == "__main__":
