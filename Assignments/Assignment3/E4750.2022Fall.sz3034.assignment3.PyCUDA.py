@@ -1,7 +1,7 @@
 # reference apart from links listed in course wiki:
 # https://stackoverflow.com/questions/40247760/scipy-convolve2d-outputs-wrong-values
 # https://cs.calvin.edu/courses/cs/374/CUDA/CUDA-Thread-Indexing-Cheatsheet.pdf
-
+#!/usr/bin/env python
 
 import numpy as np
 import pycuda.driver as cuda
