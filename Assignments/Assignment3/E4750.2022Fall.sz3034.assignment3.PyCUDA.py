@@ -165,7 +165,7 @@ class Convolution:
         if reverse_kernel:
             inputmask = inputmask[::-1, ::-1]
             input_mask_numrows = inputmask.shape[0]
-            input_mask_numcols = inputmask.shape[0]
+            input_mask_numcolumns = inputmask.shape[0]
 
         if pad_row is None:
             pad_row = input_mask_numrows - 1
@@ -307,20 +307,22 @@ class Convolution:
         )
 
 
-    def test_conv_pycuda(self, inputmatrix, inputmask):
-        # Write methods to perform convolution on the same dataset using scipy's convolution methods running on CPU and return the results and time. 
-        # Students are free to experiment with different variable names in place of inputmatrix and inputmask.
+    def conv_cpu(self, inputmatrix, inputmask):
         start = time.time()
         result = signal.convolve2d(inputmatrix, inputmask)
         end = time.time()
-        return (result, (end - start) * 1000000) #n us
+        return (result, (end - start) * 1000000) #in us
 
 
 def test_conv_pycuda(mrows = 4096, mcols = 4096, krows = 5, kcols = 5):
+    # Write methods to perform convolution on the same dataset using 
+    # scipy's convolution methods running on CPU and return the results and time. 
+    # Students are free to experiment with different 
+    # variable names in place of inputmatrix and inputmask.
     M = np.random.rand(mrows, mcols).astype(np.float32)
     K = np.random.rand(krows, kcols).astype(np.float32)
     computer = Convolution()
-    cr, tr = computer.test_conv_pycuda(M, K)
+    cr, tr = computer.conv_cpu(M, K)
     c0, t0 = computer.conv_gpu_naive(M, K, mrows, mcols, krows, kcols)
     c1, t1 = computer.conv_gpu_shared_mem(M, K, mrows, mcols, krows, kcols)
     c2, t2 = computer.conv_gpu_shared_and_constant_mem(M, K, mrows, mcols, krows, kcols)
@@ -386,7 +388,7 @@ def record():
             M = np.random.rand(msize, msize).astype(np.float32)
             K = np.random.rand(kernel_size, kernel_size).astype(np.float32)
             
-            cr, tr = computer.test_conv_pycuda                  (M, K)
+            cr, tr = computer.conv_cpu                          (M, K)
             c0, t0 = computer.conv_gpu_naive                    (M, K, msize, msize, kernel_size, kernel_size)
             c1, t1 = computer.conv_gpu_shared_mem               (M, K, msize, msize, kernel_size, kernel_size)
             c2, t2 = computer.conv_gpu_shared_and_constant_mem  (M, K, msize, msize, kernel_size, kernel_size)
@@ -429,8 +431,7 @@ def plot():
     naive_times = time_list[2]
     share_times = time_list[3]
     const_times = time_list[4]
-    
-    
+
     
     plt.figure(0)
     plt.plot(size_list, refer_times, label="cpu")
