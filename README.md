@@ -6,4 +6,4 @@ This repo serves as the staging area for assignments, solutions and tutorials th
 
 There are different tutorials available
 1. Written articles are available in GitHub Wiki. Click on the Wiki tab at the top of this page and use the sidebar to navigate to the articles you wish to refer to.
-2. Video Recitations are available at two places - [Google Drive](https://drive.google.com/drive/folders/1WqroyF3gSVP4vXzDaPGxVYCdvgUsS3g_) and [Courseworks](https://courseworks2.columbia.edu/courses/157157/external_tools/12497)
+2. Video Recitations are available at two places - [Google Drive](https://drive.google.com/drive/folders/1WqroyF3gSVP4vXzDaPGxVYCdvgUsS3g_) and [Courseworks](https://courseworks2.columbia.edu/courses/157157/external_tools/12497) (Both have the same content, just duplicated for easier accessibility to students)
