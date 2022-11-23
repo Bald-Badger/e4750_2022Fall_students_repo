@@ -21,58 +21,59 @@ class PrefixSum:
         section_size        = "#define SECTION_SIZE {}".format(self.threads_per_block_x)
 
         kernel_naive        = r"""    
-        
-        /*
-        __global__ void kernel_naive_ref (float* input, float* output, int list_size) {
-            __shared__ float intersession[SECTION_SIZE];
-            const int index = blockIdx.x * blockDim.x + threadIdx.x;
-            if (index < list_size)
-                intersession[threadIdx.x]=input[index];
-            for (int stride=1;stride<=threadIdx.x;stride<<=1) {
-                __syncthreads();
-                float inter = intersession[threadIdx.x-stride];
-                __syncthreads();
-                intersession[threadIdx.x] += inter;
-            }
-            __syncthreads();
-            if (index < list_size)
-                output[index]=intersession[threadIdx.x];
-        }
-        */
-         
-        __global__ void kernel_naive (float* in, float* out, int size) {
+        __global__ void partial_sum (float* in, float* out, float* step_sum, int size) {
             __shared__ float seg[SECTION_SIZE];
-            int tid = threadIdx.x;
+            const int tid = threadIdx.x;
             const int i = blockIdx.x * blockDim.x + threadIdx.x;
             
             if (i < size) {
                 seg[tid] = in[i];
             } else {}
             
-            //__syncthreads();
-            
-            printf("hello from id %d \n", i);
-            
-            //__syncthreads();
+            __syncthreads();
+
+            if (tid == 0) {
+                //printf("tid 0 reached 1 \n", tid);
+            }
             
             for (int stride = 1; stride <= tid; stride <<= 1) {
-                printf("thread %i reached pre_sync\n", i);
+                //if (tid == 0) printf("tid 0 reached 2 \n", tid);
                 //__syncthreads();  // uncomment this will hang the kernel
-                printf("thread %i reached post_sync\n", i);
+                //if (tid == 0) printf("tid 0 reached 3 \n", tid);
                 float partial = 0;
                 int index = tid - stride;
                 if (index >= 0 && index < SECTION_SIZE) {
                     partial = seg[index];
                 } else {}
                 //__syncthreads(); // uncomment this will hang the kernel
-                seg[tid] += partial;
-                printf("thread %i reached loop end\n", i);
+                seg[tid] += partial; 
+                //if (tid == 0) printf("tid 0 reached 4 \n", tid);
             }
             
             __syncthreads();
             
             if (i < size) {
                 out[i] = seg[tid];
+            }
+            
+            __syncthreads();
+            
+            if ( (i + 1) % SECTION_SIZE == 0 ) {
+                step_sum[i / SECTION_SIZE] = out[i];
+                // printf("seg %d is %f\n", i / SECTION_SIZE, step_sum[i / SECTION_SIZE]);
+            }
+        }
+        
+        __global__ void add_partial_sum (float* in, float* out, float* step_sum, int size) {
+            const int tid = threadIdx.x;
+            const int i = blockIdx.x * blockDim.x + threadIdx.x;
+            int add_val = 0;
+            int seg_num = 0;
+            if (i < size) {
+                seg_num = i / SECTION_SIZE;
+            }
+            if (seg_num > 0 && i < size) {
+                out[i] = out[i] + step_sum[seg_num-1];
             }
         }
         
@@ -95,7 +96,7 @@ class PrefixSum:
 
     def prefix_sum_python(self, arr=np.ndarray):
         start = time.time()
-        arr = arr.astype(np.float)
+        arr = arr.astype(np.float32)
         out = np.zeros_like(arr)
 
         if (len(arr) == 1):
@@ -111,15 +112,19 @@ class PrefixSum:
         return (out, (end - start) * 1000000)   #in us
 
 
-    def prefix_sum_gpu_naive(self, in_cpu=np.ndarray):
-        start = cuda.Event()
-        compute = cuda.Event()
-        finish = cuda.Event()
+    def prefix_sum_gpu_naive(self, in_cpu=np.ndarray, seg_size=32):
+        # start = cuda.Event()
+        # compute = cuda.Event()
+        # finish = cuda.Event()
+        print("segment size is {}".format(self.threads_per_block_x))
         out = np.zeros_like(in_cpu)
-        start.record()
-        
-        in_gpu = cuda.mem_alloc(in_cpu.shape[0] * in_cpu.dtype.itemsize)
-        out_gpu = cuda.mem_alloc(in_cpu.shape[0] * in_cpu.dtype.itemsize)
+        step_size = math.ceil(in_cpu.shape[0]/seg_size)
+        step_cpu = np.zeros(step_size, dtype=np.float32)
+        print(step_cpu)
+        # start.record()
+        in_gpu      = cuda.mem_alloc(in_cpu.shape[0] * in_cpu.dtype.itemsize)
+        out_gpu     = cuda.mem_alloc(in_cpu.shape[0] * in_cpu.dtype.itemsize)
+        step_gpu    = cuda.mem_alloc(step_cpu.shape[0] * step_cpu.dtype.itemsize)
         cuda.memcpy_htod(in_gpu, in_cpu)
         
         blockDim  = (
@@ -134,26 +139,36 @@ class PrefixSum:
         print("block dim is ({},{},{})".format(blockDim[0], blockDim[1], blockDim[2]))
         print("grid dim is ({},{},{})".format(gridDim[0], gridDim[1], gridDim[2]))
         
-        func = self.gpu_naive_module.get_function("kernel_naive")
+        func = self.gpu_naive_module.get_function("partial_sum")
         
-        start.synchronize()
-        
-        func(
+        func (
             in_gpu,
             out_gpu,
+            step_gpu,
+            np.int32(in_cpu.size),
+            block=blockDim,
+            grid=gridDim
+        )
+
+        cuda.memcpy_dtoh(step_cpu, step_gpu)
+        step_cpu,t = self.prefix_sum_python(step_cpu)
+        cuda.memcpy_htod(step_gpu, step_cpu)
+        print(step_cpu)
+        
+        func = self.gpu_naive_module.get_function("add_partial_sum")
+        
+        func (
+            in_gpu,
+            out_gpu,
+            step_gpu,
             np.int32(in_cpu.size),
             block=blockDim,
             grid=gridDim
         )
         
-        compute.record()
-        compute.synchronize()
-
         cuda.memcpy_dtoh(out, out_gpu)
-        finish.record()
-        finish.synchronize()
         
-        return (out, start.time_till(finish)*1000) # in us
+        return (out, 0) # in us
 
 
     def prefix_sum_gpu_work_efficient(self):
@@ -171,7 +186,7 @@ class PrefixSum:
 
     def test_prefix_sum_gpu_naive(self, arr=np.ndarray):
         ref, tr = self.reference_sum(arr)
-        out, to = self.prefix_sum_gpu_naive(arr)
+        out, to = self.prefix_sum_gpu_naive(arr, self.threads_per_block_x)
         assert len(ref) == len(out)
         assert np.isclose(ref, out)
         for i in range(len(ref)):
@@ -185,7 +200,7 @@ class PrefixSum:
     
 def main():
     # init object
-    seg_len = 8
+    seg_len = 32
     compute = PrefixSum(seg_len)
     
     # Programming Task 1. 1-D Scan - Naive Python algorithm
@@ -196,8 +211,8 @@ def main():
     
     # Programming Task 2. 1-D Scan - Programing in PyCuda and PyOpenCL
     # arr = np.random.randint(16, size=5)
-    arr = np.ones(32, dtype=np.float32)
-    out, to = compute.prefix_sum_gpu_naive(arr)
+    arr = np.ones(128, dtype=np.float32)
+    out, to = compute.prefix_sum_gpu_naive(arr, seg_len)
     print(arr)
     print(out)
     # compute.test_prefix_sum_gpu_naive(arr)
