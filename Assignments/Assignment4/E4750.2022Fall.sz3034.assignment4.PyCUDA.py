@@ -28,26 +28,20 @@ class PrefixSum:
             
             if (i < size) {
                 seg[tid] = in[i];
-            } else {}
-            
-            __syncthreads();
-
-            if (tid == 0) {
-                //printf("tid 0 reached 1 \n", tid);
             }
             
-            for (int stride = 1; stride <= tid; stride <<= 1) {
-                //if (tid == 0) printf("tid 0 reached 2 \n", tid);
-                //__syncthreads();  // uncomment this will hang the kernel
+            __syncthreads();
+            
+            for (int stride = 1; stride <= SECTION_SIZE; stride <<= 1) {
+                __syncthreads();
                 //if (tid == 0) printf("tid 0 reached 3 \n", tid);
                 float partial = 0;
                 int index = tid - stride;
                 if (index >= 0 && index < SECTION_SIZE) {
                     partial = seg[index];
-                } else {}
-                //__syncthreads(); // uncomment this will hang the kernel
+                }
+                __syncthreads();
                 seg[tid] += partial; 
-                //if (tid == 0) printf("tid 0 reached 4 \n", tid);
             }
             
             __syncthreads();
@@ -60,7 +54,6 @@ class PrefixSum:
             
             if ( (i + 1) % SECTION_SIZE == 0 ) {
                 step_sum[i / SECTION_SIZE] = out[i];
-                // printf("seg %d is %f\n", i / SECTION_SIZE, step_sum[i / SECTION_SIZE]);
             }
         }
         
@@ -207,7 +200,7 @@ class PrefixSum:
     
 def main():
     # init object
-    seg_len = 32
+    seg_len = 1024
     compute = PrefixSum(seg_len)
     
     # Programming Task 1. 1-D Scan - Naive Python algorithm
@@ -217,8 +210,7 @@ def main():
     compute.test_prefix_sum_python(arr2)
     
     # Programming Task 2. 1-D Scan - Programing in PyCuda and PyOpenCL
-    # arr = np.random.randint(16, size=5)
-    arr = np.ones(134215680, dtype=np.float32)
+    arr = np.ones(4194304, dtype=np.float32)
     # out, to = compute.prefix_sum_gpu_naive(arr, seg_len)
     # print(arr)
     # print(out)
