@@ -19,7 +19,7 @@ class Convolution:
 		# Use this space to define the thread dimensions if required, or it can be incorporated into main function
 		# You can also define a lambda function to compute grid dimensions if required.
         self.getSourceModule()
-        self.threads_per_block_x = 32 # max kernel size is 1024 = 32 *
+        self.threads_per_block_x = 32 # max kernel size is 1024 = 32 * 32
         self.threads_per_block_y = 32
         self.threads_per_block_z = 1
         self.threads_total = self.threads_per_block_x * self.threads_per_block_y * self.threads_per_block_z
