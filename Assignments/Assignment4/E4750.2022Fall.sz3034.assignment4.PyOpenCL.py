@@ -253,8 +253,12 @@ class PrefixSum:
         out, to = self.prefix_sum_python(arr)
         assert len(ref) == len(out)
         for i in range(len(ref)):
-            assert np.isclose(ref[i], out[i])
-        print("test_prefix_sum_python passed")
+            if (np.isclose(ref[i], out[i])):
+                print("test_prefix_sum_python passed")
+                return True
+            else:
+                print("test_prefix_sum_python failed")
+                return False
 
 
     def __test_prefix_sum_gpu_wrapper(self, arr=np.ndarray, scheme=""):
@@ -283,12 +287,24 @@ def main():
     # init object
     seg_len = 128
     compute = PrefixSum(seg_len)
+    # size_list = [128, 2048, 262144, 4194304, 134215680]
+    size_list = [128, 2048, 262144, 4194304, 134215680]
     
     # Programming Task 1. 1-D Scan - Naive Python algorithm
     arr1 = np.random.random_sample(5)
     arr2 = np.random.random_sample(5)
     compute.test_prefix_sum_python(arr1)
     compute.test_prefix_sum_python(arr2)
+    
+    # Programming Task 2-3 1-D Scan - Work-efficient scan
+    if (False): # takes too much time, change to true if want to run
+        for n in size_list:
+            arr = np.random.random_sample(n).astype(np.float32)
+            res = compute.test_prefix_sum_python(arr)
+            if (res == True):
+                print("python naive test for size {} passed".format(n))
+            else:
+                print("python naive test for size {} failed".format(n))
     
     # Programming Task 2-1 1-D Scan - Work-inefficient scan
     arr = np.ones(4194304, dtype=np.float32)
@@ -298,7 +314,6 @@ def main():
     compute.test_prefix_sum_gpu_work_efficient(arr)
     
     # record and plot time takes for each scheme
-    size_list = [128, 2048, 262144, 4194304, 134215680]
     
     py_times        = np.array([])
     naive_times     = np.array([])
@@ -306,6 +321,8 @@ def main():
     
     for n in size_list:
         arr = np.ones(n, dtype=np.float32)
+        compute.test_prefix_sum_gpu_naive(arr)
+        compute.test_prefix_sum_gpu_work_efficient(arr)
         c0, t0          = compute.prefix_sum_python(arr)
         c1, t1          = compute.prefix_sum_gpu_naive(arr, seg_len)
         c2, t2          = compute.prefix_sum_gpu_work_efficient(arr, seg_len)
