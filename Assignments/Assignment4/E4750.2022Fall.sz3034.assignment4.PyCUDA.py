@@ -4,7 +4,6 @@ from   pycuda.compiler import SourceModule
 import numpy as np
 import time
 import matplotlib.pyplot as plt
-import pickle
 import math
 
 
@@ -137,7 +136,7 @@ class PrefixSum:
         return (out, (end - start) * 1000000)   #in us
 
 
-    def __prefix_sum_gpu_wrapper(self, in_cpu=np.ndarray, seg_size=32, scheme="naive"):
+    def prefix_sum_gpu_wrapper(self, in_cpu=np.ndarray, seg_size=32, scheme="naive"):
         start = cuda.Event()
         finish = cuda.Event()
         out = np.zeros_like(in_cpu)
@@ -181,9 +180,11 @@ class PrefixSum:
         )
 
         cuda.memcpy_dtoh(step_cpu, step_gpu)
+        # yeah... not quite enough time for recursive GPU call
         step_cpu, t = self.prefix_sum_python(step_cpu, None)
         cuda.memcpy_htod(step_gpu, step_cpu)
         
+        # both naive and efficient kernel share this kernel function
         func        = self.gpu_naive_module.get_function("add_partial_sum")
         blockDim    = (self.threads_per_block_x, 1, 1)
         
@@ -207,11 +208,11 @@ class PrefixSum:
     
     
     def prefix_sum_gpu_naive(self, in_cpu=np.ndarray, seg_size=32):
-        return self.__prefix_sum_gpu_wrapper(in_cpu, seg_size, "naive")
+        return self.prefix_sum_gpu_wrapper(in_cpu, seg_size, "naive")
         
     
     def prefix_sum_gpu_work_efficient(self, in_cpu=np.ndarray, seg_size=32):
-        return self.__prefix_sum_gpu_wrapper(in_cpu, seg_size, "efficient")
+        return self.prefix_sum_gpu_wrapper(in_cpu, seg_size, "efficient")
 
 
     def test_prefix_sum_python(self, arr=np.ndarray):
@@ -242,7 +243,7 @@ class PrefixSum:
 
 
     def test_prefix_sum_gpu_work_efficient(self, arr=np.ndarray):
-        self.test_prefix_sum_gpu_wrapper(arr, "efficient")          
+        self.test_prefix_sum_gpu_wrapper(arr, "efficient")
     
     
 def main():

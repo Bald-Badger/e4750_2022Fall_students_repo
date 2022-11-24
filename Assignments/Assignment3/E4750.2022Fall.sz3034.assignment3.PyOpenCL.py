@@ -20,7 +20,7 @@ class Convolution:
         devs = None
         for platform in platforms:
             if platform.name == NAME:
-                devs = platform.get_devices()       
+                devs = platform.get_devices()
 
         # Create Context:
         self.ctx = cl.Context(devs)
@@ -204,7 +204,7 @@ class Convolution:
         kernel = self.module_naive_gpu.conv_gpu
         
         kernel (
-            self.queue,                     (c_rows,c_cols),                    None, 
+            self.queue,                     (c_rows, c_cols),                    None, 
             a_gpu.data,                     b_gpu.data,                         c_gpu.data,
             np.int32(input_matrix_numrows), np.int32(input_matrix_numcolumns),
             np.int32(input_mask_numrows),   np.int32(input_mask_numcolumns),
