@@ -58,9 +58,7 @@ class PrefixSum:
         }
         
         __global__ void add_partial_sum (float* in, float* out, float* step_sum, int size) {
-            const int tid = threadIdx.x;
             const int i = blockIdx.x * blockDim.x + threadIdx.x;
-            int add_val = 0;
             int seg_num = 0;
             if (i < size) {
                 seg_num = i / SECTION_SIZE;
@@ -121,7 +119,7 @@ class PrefixSum:
         return (out, (end - start) * 1000000)   #in us 
 
 
-    def prefix_sum_python(self, arr=np.ndarray):
+    def prefix_sum_python(self, arr=np.ndarray, seg_size=None):
         start = time.time()
         arr = arr.astype(np.float32)
         out = np.zeros_like(arr)
@@ -139,7 +137,7 @@ class PrefixSum:
         return (out, (end - start) * 1000000)   #in us
 
 
-    def prefix_sum_gpu_wrapper(self, in_cpu=np.ndarray, seg_size=32, scheme="naive"):
+    def __prefix_sum_gpu_wrapper(self, in_cpu=np.ndarray, seg_size=32, scheme="naive"):
         start = cuda.Event()
         finish = cuda.Event()
         out = np.zeros_like(in_cpu)
@@ -183,13 +181,13 @@ class PrefixSum:
         )
 
         cuda.memcpy_dtoh(step_cpu, step_gpu)
-        step_cpu,t = self.prefix_sum_python(step_cpu)
+        step_cpu, t = self.prefix_sum_python(step_cpu, None)
         cuda.memcpy_htod(step_gpu, step_cpu)
         
-        func = self.gpu_naive_module.get_function("add_partial_sum")
-        blockDim  = (self.threads_per_block_x, 1, 1)
+        func        = self.gpu_naive_module.get_function("add_partial_sum")
+        blockDim    = (self.threads_per_block_x, 1, 1)
         
-        gridDim   = (math.ceil(in_cpu.shape[0]/self.threads_per_block_x), 1, 1)
+        gridDim     = (math.ceil(in_cpu.shape[0]/self.threads_per_block_x), 1, 1)
         
         func (
             in_gpu,
@@ -209,11 +207,11 @@ class PrefixSum:
     
     
     def prefix_sum_gpu_naive(self, in_cpu=np.ndarray, seg_size=32):
-        return self.prefix_sum_gpu_wrapper(in_cpu, seg_size, "naive")
+        return self.__prefix_sum_gpu_wrapper(in_cpu, seg_size, "naive")
         
     
     def prefix_sum_gpu_work_efficient(self, in_cpu=np.ndarray, seg_size=32):
-        return self.prefix_sum_gpu_wrapper(in_cpu, seg_size, "efficient")
+        return self.__prefix_sum_gpu_wrapper(in_cpu, seg_size, "efficient")
 
 
     def test_prefix_sum_python(self, arr=np.ndarray):
@@ -244,7 +242,7 @@ class PrefixSum:
 
 
     def test_prefix_sum_gpu_work_efficient(self, arr=np.ndarray):
-        self.test_prefix_sum_gpu_wrapper(arr, "efficient")
+        self.test_prefix_sum_gpu_wrapper(arr, "efficient")          
     
     
 def main():
@@ -252,18 +250,53 @@ def main():
     seg_len = 32
     compute = PrefixSum(seg_len)
     
+    
     # Programming Task 1. 1-D Scan - Naive Python algorithm
     arr1 = np.random.random_sample(5)
     arr2 = np.random.random_sample(5)
     compute.test_prefix_sum_python(arr1)
     compute.test_prefix_sum_python(arr2)
     
+    
     # Programming Task 2-1 1-D Scan - Work-inefficient scan
-    arr = np.ones(134215680, dtype=np.float32)
+    arr = np.ones(4194304, dtype=np.float32)
     compute.test_prefix_sum_gpu_naive(arr)
+    
     
     # Programming Task 2-2 1-D Scan - Work-efficient scan
     compute.test_prefix_sum_gpu_work_efficient(arr)
+    
+    
+    # record and plot time takes for each scheme
+    size_list = [128, 2048, 262144, 4194304, 134215680]
+    
+    py_times        = np.array([])
+    naive_times     = np.array([])
+    efficient_times = np.array([])
+    
+    for n in size_list:
+        arr = np.ones(n, dtype=np.float32)
+        c0, t0          = compute.prefix_sum_python(arr, seg_len)
+        c1, t1          = compute.prefix_sum_gpu_naive(arr, seg_len)
+        c2, t2          = compute.prefix_sum_gpu_work_efficient(arr, seg_len)
+        py_times        = np.append(py_times, t0)
+        naive_times     = np.append(naive_times, t1)
+        efficient_times = np.append(efficient_times, t2)
+        
+    size_list_normalize = np.log2(size_list)
+    py_times            = np.log2(py_times)
+    naive_times         = np.log2(naive_times)
+    efficient_times     = np.log2(efficient_times)
+    
+    plt.figure(0)
+    plt.plot(size_list_normalize, py_times, label="cpu")
+    plt.plot(size_list_normalize, naive_times, label="gpu naive")
+    plt.plot(size_list_normalize, efficient_times, label="gpu efficient")
+    plt.legend()
+    plt.xlabel("input length in 2 log scale (2^x)")
+    plt.ylabel("time takes in 2 log scale (2^y μs)")
+    plt.title("PyCUDA: time it takes for each workload in 2 log scale")
+    plt.savefig("cuda_plot.png")
 
 
 if __name__ == "__main__":
