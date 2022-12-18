@@ -75,8 +75,8 @@ class Convolution:
             int by = blockIdx.y;
             
             // row number and col number current thread is working on
-            int row = by*blockDim.y + ty;
-            int col = bx*blockDim.x + tx;
+            int col = by*blockDim.y + ty;
+            int row = bx*blockDim.x + tx;
 
             float sum;
             int mat_col_index, mat_row_index;
